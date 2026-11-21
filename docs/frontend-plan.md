@@ -1,11 +1,13 @@
 # Frontend Implementation Plan (React Native + Expo + TypeScript)
-**Nguồn:** (1) Prototype · (2) PRD · (3) Architecture · (5) API. **Trạng thái:** Revision 3.2.1 (2026-11-20) – bản nháp kế hoạch, chưa được nhóm duyệt. Không tạo mã.
-> **Nguồn đã đối chiếu trực tiếp trong Revision 3.2.1:** bốn tài liệu v1.1 (PRD, Solution Architecture, ERD, API); bằng chứng theo document/section ở `review-plan-report.md` §9. PRD v1.1 là Approved business baseline; prototype chỉ là tham chiếu UI. REQ-X1…X5 không phải yêu cầu bắt buộc của PRD v1.1 và tiếp tục nằm ngoài phạm vi/đề xuất tùy chọn D-21…D-24.
+**Nguồn:** (1) Prototype · (2) PRD · (3) Architecture · (5) API. **Trạng thái:** Revision 3.2.2 (2026-11-20) – kế hoạch đã được nhóm phê duyệt; GROUP APPROVED. Không tạo mã.
+> **Nguồn đã đối chiếu trực tiếp trong Revision 3.2.2:** bốn tài liệu v1.1 (PRD, Solution Architecture, ERD, API); bằng chứng theo document/section ở `review-plan-report.md` §9. PRD v1.1 là Approved business baseline; prototype chỉ là tham chiếu UI. REQ-X1…X5 không phải yêu cầu bắt buộc của PRD v1.1 và tiếp tục nằm ngoài phạm vi/đề xuất tùy chọn D-21…D-24.
 
 
 Cấu hình thư viện ở §10 là **khuyến nghị kỹ thuật chờ nhóm duyệt (D-16)**, đã tra cứu ngày 2026-11-12, **chưa cài thử**, phải xác minh lại + khóa lockfile khi dựng (D-03). **RV-xx** = yêu cầu sửa của lượt review Revision 2.
 
 ## 1. Nguyên tắc
+
+**Ranh giới triển khai:** mobile app React Native + Expo là ứng dụng Android/iOS; backend NestJS được host trên Vercel và kết nối Supabase PostgreSQL qua API. Không nhúng Supabase service-role key, database password hoặc Claude API key vào mobile bundle; không dùng Supabase Auth (xác thực do NestJS đảm nhiệm).
 - **PRD là nguồn nghiệp vụ chuẩn; prototype chỉ là tham chiếu giao diện, bố cục và tương tác** (sai khác ở `review-plan-report.md` §2). Chức năng PRD mà prototype không có (xem/sửa/xóa giao dịch, chat nhiều lượt, quét hóa đơn có món hàng, hội thoại đã lưu…) **được thiết kế mới theo PRD, không bỏ chức năng**. D-01 **không chặn** kế hoạch: nếu nhóm không cung cấp prototype mới hơn thì tiếp tục dùng file hiện tại làm tham chiếu giao diện.
 - Client chỉ nói chuyện với REST backend; **không gọi AI trực tiếp**, không chứa khóa AI.
 - Server là nguồn sự thật cho số dư, thống kê, ngân sách, trạng thái draft. Client chỉ validate để hỗ trợ UX.

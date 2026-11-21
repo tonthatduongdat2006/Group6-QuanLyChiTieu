@@ -1,7 +1,7 @@
 # Repository Audit Report
 **Dự án:** Quản Lý Chi Tiêu – AI Smart Expense · **Giai đoạn:** Step 3 – Planning · **Ngày:** 2026-11-10
-**Trạng thái:** Revision 3.2.1 (2026-11-20) – bản nháp kế hoạch, chưa được nhóm duyệt.
-> **Nguồn đã đối chiếu trong Revision 3.2.1:** bốn tài liệu nguồn v1.1 (`02_PRD_v1.1.md`, `03_Solution_Architecture_v1.1.md`, `04_Database_Schema_ERD_v1.1.md`, `05_API_Documentation_v1.1.md`) đã được đọc trực tiếp; bằng chứng ở `review-plan-report.md` §9. Bộ planning Revision 3.2 có historical inventory v1.0; các file v1.0 chỉ được ghi nhận cho lịch sử, không dùng làm baseline khi mâu thuẫn với v1.1. Không có repository mã nguồn trong gói planning được kiểm toán; đây là package/input audit, không phải audit repository code.
+**Trạng thái:** Revision 3.2.2 (2026-11-20) – kế hoạch đã được nhóm phê duyệt; GROUP APPROVED.
+> **Nguồn đã đối chiếu trong Revision 3.2.2:** bốn tài liệu nguồn v1.1 (`02_PRD_v1.1.md`, `03_Solution_Architecture_v1.1.md`, `04_Database_Schema_ERD_v1.1.md`, `05_API_Documentation_v1.1.md`) đã được đọc trực tiếp; bằng chứng ở `review-plan-report.md` §9. Bộ planning Revision 3.2 có historical inventory v1.0; các file v1.0 chỉ được ghi nhận cho lịch sử, không dùng làm baseline khi mâu thuẫn với v1.1. Không có repository mã nguồn trong gói planning được kiểm toán; đây là package/input audit, không phải audit repository code.
 
 
 

@@ -1,5 +1,5 @@
 # Phase Breakdown
-**Trạng thái:** Revision 3.2.1 (2026-11-20) – bản nháp kế hoạch, chưa được nhóm duyệt. Quy mô dùng đơn vị tương đối (S/M/L); kế hoạch **không đưa lịch/ngày** vì package không nêu deadline/năng lực.
+**Trạng thái:** Revision 3.2.2 (2026-11-20) – kế hoạch đã được nhóm phê duyệt; GROUP APPROVED. Quy mô dùng đơn vị tương đối (S/M/L); kế hoạch **không đưa lịch/ngày** vì package không nêu deadline/năng lực.
 > **Nguồn đã đối chiếu trực tiếp:** bốn tài liệu v1.1; bằng chứng V-01…V-08 ở `review-plan-report.md` §9. PRD v1.1 là Approved business baseline. Những nội dung không thuộc PRD v1.1 (xóa danh mục, OAuth xã hội, icon/hạn của hũ, biểu đồ thu nhập 7 ngày/chọn kỳ) không được triển khai như phạm vi v1.
 
 
@@ -18,13 +18,13 @@ Giữ **5 Phase và 80 task** (hai task có cổng đăng nhập xã hội của
 - **Số dư không âm (D-07 đã duyệt theo PRD v1.1):** áp dụng cho tạo/sửa/xóa giao dịch, nạp hũ, xác nhận draft, confirm-all, AI Scan, sửa hóa đơn; mọi thất bại rollback toàn bộ. Task ảnh hưởng: P2-BE-02, P2-BE-03, P2-BE-05, P2-FE-04, P2-FE-05, P2-TD-01, P3-BE-02, P3-BE-05, P3-BE-06, P3-BE-08, P3-FE-04, P3-TD-01, P4-BE-03. Test mới `IT-BAL-GUARD`; `IT-CONC-BAL` viết lại để chứng minh số dư cuối không thể âm.
 - **Idempotency theo API/ERD v1.1:** `409 IDEMPOTENCY_KEY_REUSED`; Idempotency-Key cho cả xác nhận draft và confirm-all; dùng đúng các trường ERD v1.1, không thêm cột trùng mục đích (P0-SH-02, P1-BE-01, P1-BE-03, P3-BE-04…07).
 - **Gỡ khỏi phạm vi:** xóa danh mục, OAuth xã hội, `icon_key`/`target_date` của hũ, thống kê thu nhập 7 ngày/chọn kỳ (P1-BE-06, P2-BE-01, P2-BE-04, P2-BE-06, P2-FE-03/07/08, P2-TD-01, P1-TD-01, P1-SH-03). D-10: giữ biểu đồ chi tiêu 7 ngày theo PRD.
-- **Thứ tự quyết định:** D-05 (mapping idempotency) đã được đối chiếu theo ERD; nhóm review việc áp dụng schema trước migration (P1-BE-01), không chặn việc sinh OpenAPI từ API v1.1 (P0-SH-02); D-06 đã xử lý theo hợp đồng v1.1 nên không còn chặn task nào.
+- **Thứ tự quyết định:** D-05 mapping idempotency đã được nhóm duyệt áp dụng theo ERD v1.1; không còn là decision gate (P0-SH-02); D-06 đã xử lý theo hợp đồng v1.1 nên không còn chặn task nào.
 
 ## 2. Các Phase
 ### Phase 0 – Chốt quyết định, hợp đồng, bootstrap & Test harness *(M)* — 9 task
-- **Mục tiêu:** mặt bằng chung (bộ nguồn v1.1 đã đối chiếu, gói quyết định, OpenAPI v1.1, repo + lockfile sau compatibility check, harness, fixtures, CI).
-- **Vào:** 4 tài liệu nguồn v1.1 đã được đối chiếu; nhóm review kết quả V-01…V-08; D-05 cần nhóm xem xét trước migration, không chặn OpenAPI; D-01 và D-04b không chặn.
-- **Ra:** OpenAPI (đủ endpoint API v1.1) được nhóm xem; repo xanh trên CI; `docs/stack-lock.md` + lockfile (chọn stable versions tương thích và khóa lockfile; smoke test Android/iOS đạt); harness BE/FE; AI fixtures; E2E spike; **gate P0-SH-03 được nhóm ký**.
+- **Mục tiêu:** mặt bằng chung (Planning GROUP APPROVED; bộ nguồn v1.1 đã đối chiếu; OpenAPI v1.1 + contract delta D-12; repo + lockfile sau compatibility check; cấu hình kết nối Supabase PostgreSQL; harness, fixtures, CI).
+- **Vào:** 4 tài liệu nguồn v1.1 đã được đối chiếu; Planning GROUP APPROVED; D-05 và D-12a/D-12b GROUP APPROVED (soft delete bằng `transactions.deleted_at`, giữ receipt child rows, DELETE 204 lần đầu/lặp); cần ghi nhận quyết định vào ERD/API/OpenAPI changelog trước migration; Supabase PostgreSQL + Vercel API là nền tảng đã chọn.
+- **Ra:** OpenAPI (đủ endpoint API v1.1 và contract delta D-12) được kiểm tra kỹ thuật; repo xanh trên CI; `docs/stack-lock.md` + lockfile (chọn stable versions tương thích và khóa lockfile; smoke test Android/iOS đạt); harness BE/FE; AI fixtures; E2E spike; **gate P0-SH-03 được nhóm ký**.
 - **Task:** P0-SH-01, P0-SH-02, P0-TD-01…06, P0-SH-03 (gate).
 ### Phase 1 – Foundation *(L)* — 16 task
 - **Mục tiêu:** khung ứng dụng, schema theo ERD v1.1, Auth hoàn chỉnh (gồm remember-me).

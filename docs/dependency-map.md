@@ -1,8 +1,8 @@
 # Dependency Map
-**Trạng thái:** Revision 3.2.1 (2026-11-20) – đã đồng bộ nguồn, trình nhóm review; chưa được nhóm duyệt. **80 task.** ID task xem `task-breakdown.md`; quyết định `D-xx` xem `review-plan-report.md` §6. Việc kiểm tra "không vòng phụ thuộc" chạy tự động (`review-plan-report.md` §4). Nguồn v1.1 đã được đối chiếu trực tiếp; V-01…V-08 có bằng chứng tại `review-plan-report.md` §9.
+**Trạng thái:** Revision 3.2.2 (2026-11-20) – đã đồng bộ nguồn và quyết định; GROUP APPROVED. **80 task.** ID task xem `task-breakdown.md`; quyết định `D-xx` xem `review-plan-report.md` §6. Việc kiểm tra "không vòng phụ thuộc" chạy tự động (`review-plan-report.md` §4). Nguồn v1.1 đã được đối chiếu trực tiếp; V-01…V-08 có bằng chứng tại `review-plan-report.md` §9.
 
 ## 1. Mức Phase và cổng duyệt
-Mỗi mũi tên đi qua một **gate do nhóm ký** (P0-SH-03, P1-SH-03, P2-SH-02, P3-SH-02, P4-SH-02).
+Planning đã GROUP APPROVED; mỗi mũi tên vẫn đi qua một **gate nghiệm thu Phase do nhóm ký** (P0-SH-03, P1-SH-03, P2-SH-02, P3-SH-02, P4-SH-02).
 ```mermaid
 flowchart LR
   P0[Phase 0<br/>Quyết định · OpenAPI · Repo · Harness] --> G0{P0-SH-03<br/>Gate}
@@ -20,7 +20,7 @@ flowchart LR
 ```mermaid
 flowchart TB
   SRC[P0-SH-01 Review nguồn v1.1] --> OA[P0-SH-02 OpenAPI]
-  DEC[D-05 Review mapping trước migration] --> DB[P1-BE-01 Schema / Migration]
+  DEC[D-05 approved mapping] --> DB[P1-BE-01 Schema / Migration]
   OA --> BE1[P1-BE-01 Schema + delta (sau khi duyệt)]
   OA --> FE4[P1-FE-04 API client + remember-me]
   BE1 --> BE3[P1-BE-03 Primitives + Idempotency] --> BE4[P1-BE-04 Auth]
@@ -67,13 +67,13 @@ flowchart TB
 Chỉ các D-xx loại ② có mặc định đề xuất, ③ hoãn được, ④ có phương án; **D-01 và D-04b không chặn Phase 0/1**.
 | Quyết định | Chặn task |
 |---|---|
-| **V-01…V-08 đã đối chiếu; D-05 nhóm review trước migration** | P0-SH-01 review source evidence; P0-SH-02 sinh OpenAPI từ API v1.1; D-05 chỉ là gate nhóm trước schema/migration (P1-BE-01, P1-BE-03) |
+| **Planning GROUP APPROVED; V-01…V-08 đã đối chiếu; D-05/D-12a/D-12b đã duyệt** | P0-SH-01 xác nhận evidence và ghi quyết định đã duyệt; P0-SH-02 sinh OpenAPI v1.1 cùng contract delta D-12; không tổ chức phê duyệt lại Planning/D-05/D-12 |
 | D-06 (**đã xử lý theo hợp đồng `PATCH /transactions/{transactionId}` của API v1.1**) | không chặn task nào |
 | D-02 repo, D-03 phiên bản | P0-TD-01 → toàn bộ |
 | D-04a CI | P0-TD-05 |
 | D-04b hosting/vùng | **chỉ** P4-TD-02 |
-| D-05 idempotency (14 cột đã có ở 6 bảng theo ERD v1.1; không thêm cột) | P1-BE-01, P1-BE-03 trước migration; không chặn OpenAPI |
-| D-12a/D-12b xóa giao dịch/receipt child rows (hard/soft vẫn mở) | P1-BE-01, P2-BE-03 |
+| D-05 idempotency (đã được nhóm duyệt áp dụng 14 cột/6 bảng theo ERD v1.1; không thêm cột) | P1-BE-01, P1-BE-03 |
+| D-12a/D-12b (GROUP APPROVED: `transactions.deleted_at`; giữ receipt child rows; DELETE 204 lần đầu/lặp) | cập nhật ERD/API/OpenAPI changelog theo quyết định trước P1-BE-01; triển khai ở P2-BE-03 |
 | D-12c xóa tài khoản (OQ-03) | không task nào (hoãn) |
 | D-13a/b remember-me, token | P1-BE-04, P1-FE-04, P1-FE-06 |
 | D-13c quên mật khẩu (OQ-02) | không task nào (hoãn) |
@@ -93,4 +93,4 @@ Chỉ các D-xx loại ② có mặc định đề xuất, ③ hoãn được, �
 
 ## 5. Đường găng (theo task)
 P0-SH-01 → P0-SH-02 → P0-TD-01 → P0-SH-03 (gate) → P1-BE-01 → P1-BE-03 → P1-BE-04 → P1-SH-03 (gate) → P2-BE-02 → P2-BE-03 → P2-BE-05 → P2-BE-07 → P2-SH-02 (gate) → P3-BE-01 → P3-BE-04 → P3-BE-05 → P3-BE-06 / P3-BE-07 → P3-BE-08 → P3-SH-02 (gate) → P4-TD-01 → P4-SH-02 (gate).
-Rút ngắn: FE chạy song song bằng mock; chốt gói D-xx loại ② sớm (đặc biệt D-05, D-17, D-18); harness và fixtures sẵn trước tính năng.
+Rút ngắn: FE chạy song song bằng mock; Planning và D-05/D-12 đã GROUP APPROVED; chỉ xử lý các lựa chọn kỹ thuật loại ② còn thực sự cần ở gate tương ứng (ví dụ D-17/D-18); harness và fixtures sẵn trước tính năng. Supabase PostgreSQL + Vercel API là nền tảng triển khai đã chọn.
