@@ -1,0 +1,19 @@
+// P0-TD-01a – datasource/generator only.
+//
+// Do NOT add models or create migrations here. The business schema
+// (14 tables per ERD v1.1, D-05 idempotency columns, D-12a
+// `transactions.deleted_at`) is implemented only in task P1-BE-01,
+// after the Phase 0 gate (P0-SH-03).
+//
+// Connection: Supabase PostgreSQL via the Session Pooler, read from the
+// DATABASE_URL environment variable (apps/api/.env, never committed).
+// Supabase Auth and Supabase Storage are not used.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}

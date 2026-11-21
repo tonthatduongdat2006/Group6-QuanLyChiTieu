@@ -30,11 +30,19 @@ Evidence sources used below:
 | Prettier | 3.10.1 | Backend format check passed [U-2026-11-21] |
 | Express (runtime) | 4.22.1 | Resolved via `@nestjs/platform-express` 10.4.22 [R: lockfile] |
 | @types/express | 5.0.6 | **Mismatch with Express 4 runtime** – to be aligned to 4.x (approved Q3, P0-TD-01 step 3) |
-| Prisma / @prisma/client | 6.19.3 | Declared in `apps/api/package.json` and lockfile [R]; **no schema, not verified** |
-| PostgreSQL (dev) | Supabase PostgreSQL | Platform selected; connection not verified |
+| Prisma / @prisma/client | 6.19.3 | Schema datasource-only validated; Supabase Session Pooler smoke passed [U-2026-11-21] |
+| PostgreSQL (dev) | Supabase PostgreSQL 17.12 | Connection verified via Session Pooler, port 5432; `db:smoke` passed [U-2026-11-21] |
 | PostgreSQL (local/test) | Native install on drive D: (Q2) | Not installed; version and directories pending coordinator confirmation |
 
-`apps/api/.env.example` exists [U-2026-11-21]; it currently contains only placeholder `PORT` [R].
+`apps/api/.env.example` contains placeholder `DATABASE_URL` for Supabase Session Pooler and `CHECKPOINT_DISABLE=1` [U-2026-11-21].
+
+Prisma datasource-only setup [U-2026-11-21]:
+- Schema: `apps/api/prisma/schema.prisma` contains only `generator` and `datasource`; no models, enums, or migrations.
+- Connection: Supabase PostgreSQL via Session Pooler (port 5432), using `DATABASE_URL` from `apps/api/.env`.
+- `pnpm --filter api prisma:validate` → passed.
+- `pnpm --filter api db:smoke` → `Script executed successfully.`
+- `pnpm --filter api build` → passed.
+- `apps/api/.env` is Git-ignored; no Prisma migrations directory exists.
 
 ## 3. Mobile
 
@@ -64,7 +72,7 @@ Note: `packages/contracts/validate.sh` defaults to `docs/05_API_Documentation_v1
 
 ## 5. Pending Compatibility Verification
 
-- Supabase PostgreSQL connection from the backend (Prisma, datasource only).
+- Full Prisma ORM compatibility with application models and migrations (P1-BE-01); current verification covers datasource-only schema and connectivity.
 - Local/test PostgreSQL on drive D: (version, directories – awaiting confirmation).
 - Prisma 6.19.3 against PostgreSQL and NestJS 10 / TypeScript 5.9.3.
 - Express type compatibility with NestJS 10 (`@types/express` 5.0.6 vs Express 4.22.1).
