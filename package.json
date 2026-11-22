@@ -8,6 +8,8 @@
     "dev:mobile": "pnpm --filter mobile start",
     "build:api": "pnpm --filter api build",
     "typecheck": "pnpm -r typecheck",
+    "lint": "pnpm --filter api lint:check",
+    "smoke:p0": "node scripts/smoke-p0.mjs",
     "prepare": "husky"
   },
   "devDependencies": {

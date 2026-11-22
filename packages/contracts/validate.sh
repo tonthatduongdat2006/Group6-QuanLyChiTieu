@@ -4,7 +4,7 @@
 # Location: packages/contracts/validate.sh
 #
 # Primary: Python 3 + PyYAML (available without network)
-# Secondary: redocly / spectral (install at bootstrap; network required)
+# Secondary: redocly / spectral (local pnpm devDependency — pending group approval)
 #
 # Checks:
 #   1. YAML parses successfully
@@ -29,9 +29,11 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 OPENAPI="$SCRIPT_DIR/openapi.yaml"
-# Set API_DOC_PATH to the absolute path of 05_API_Documentation_v1.1.md
-# at bootstrap time (after repo is created).
-API_DOC="${API_DOC_PATH:-$SCRIPT_DIR/../../docs/05_API_Documentation_v1.1.md}"
+# Default: the read-only v1.1 source in docs/sources/. Override with
+# API_DOC_PATH only to point at another copy of 05_API_Documentation_v1.1.md.
+# If the document cannot be found or its endpoint headings cannot be counted,
+# the count-match check FAILS (it is never skipped).
+API_DOC="${API_DOC_PATH:-$SCRIPT_DIR/../../docs/sources/05_API_Documentation_v1.1.md}"
 
 echo "======================================================================"
 echo "P0-SH-02 OpenAPI Contract Validation"
@@ -45,6 +47,9 @@ echo ""
 # ------------------------------------------------------------------------------
 echo "── Python structural checks ──────────────────────────────────────────"
 
+# Capture the Python exit code instead of letting `set -e` abort the script,
+# so the SUMMARY below is always printed and the final exit code reflects it.
+set +e
 python3 - "$OPENAPI" "$API_DOC" <<'PYEOF'
 import sys, re, os
 
@@ -97,18 +102,27 @@ print(f"   Total operations: {total_ops}")
     f"Operation count = 44" if total_ops == 44
     else f"Operation count: expected 44, got {total_ops}")
 
-if os.path.exists(api_doc_path):
-    with open(api_doc_path) as f:
-        api_text = f.read()
-    api_count = len(re.findall(
-        r'^### (GET|POST|PATCH|PUT|DELETE|HEAD|OPTIONS) `', api_text, re.MULTILINE))
-    print(f"   API doc headings: {api_count}")
-    (PASS if total_ops == api_count else FAIL).append(
-        f"Count match: openapi={total_ops} = API doc={api_count}" if total_ops == api_count
-        else f"Count mismatch: openapi={total_ops}, API doc={api_count}")
+if not os.path.isfile(api_doc_path):
+    print(f"   API doc not found at {api_doc_path}")
+    FAIL.append(f"API doc not found at {api_doc_path} — endpoint count not compared")
 else:
-    print(f"   API doc not found at {api_doc_path} — heading count skipped")
-    print("   Set API_DOC_PATH env var to enable this check at bootstrap.")
+    try:
+        with open(api_doc_path, encoding="utf-8") as f:
+            api_text = f.read()
+    except (OSError, UnicodeDecodeError) as e:
+        api_text = None
+        print(f"   API doc could not be read: {e}")
+        FAIL.append(f"API doc could not be read ({api_doc_path}) — endpoint count not compared")
+    if api_text is not None:
+        api_count = len(re.findall(
+            r'^### (GET|POST|PATCH|PUT|DELETE|HEAD|OPTIONS) `', api_text, re.MULTILINE))
+        print(f"   API doc headings: {api_count}")
+        if api_count == 0:
+            FAIL.append(f"API doc endpoint headings not found in {api_doc_path} — count not compared")
+        else:
+            (PASS if total_ops == api_count else FAIL).append(
+                f"Count match: openapi={total_ops} = API doc={api_count}" if total_ops == api_count
+                else f"Count mismatch: openapi={total_ops}, API doc={api_count}")
 
 print(f"   Saving Jars operations: {jar_ops}")
 (PASS if jar_ops == 6 else FAIL).append(
@@ -176,13 +190,13 @@ for f in FAIL:
 
 sys.exit(0 if not FAIL else 1)
 PYEOF
-
 PYTHON_EXIT=$?
+set -e
 
 echo ""
 
 # ------------------------------------------------------------------------------
-# Secondary: OpenAPI linter (requires network/installation at bootstrap)
+# Secondary: OpenAPI linter (local pnpm devDependency — pending group approval)
 # ------------------------------------------------------------------------------
 echo "── OpenAPI linter ───────────────────────────────────────────────────"
 LINT_STATUS="skipped"
@@ -203,11 +217,9 @@ elif command -v spectral &>/dev/null; then
         LINT_STATUS="failed"
     fi
 else
-    echo "  ⚠️   No OpenAPI linter found. Lint check skipped."
-    echo "  ⚠️   At repository bootstrap (P0-TD-01), install a linter:"
-    echo "       npm install -g @redocly/cli"
-    echo "       # or: npm install -g @stoplight/spectral-cli"
-    echo "  ⚠️   Then re-run this script. CI pipeline must include this check."
+    echo "  ⚠️   No OpenAPI linter found on PATH. Lint check skipped."
+    echo "  ⚠️   Linter integration (@redocly/cli, local pnpm devDependency) is pending"
+    echo "       group approval (Q3, docs/decisions.md §3)."
 fi
 
 echo ""

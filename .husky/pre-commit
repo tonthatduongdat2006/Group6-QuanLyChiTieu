@@ -1,2 +1,1 @@
-export npm_config_script_shell='D:\Program Files\Git\bin\bash.exe'
 pnpm typecheck
