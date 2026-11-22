@@ -32,7 +32,7 @@ Evidence sources used below:
 | @types/express | 4.17.25 | Aligned with Express 4.22.1 runtime; API typecheck and build passed [U-2026-11-22] |
 | Prisma / @prisma/client | 6.19.3 | Schema datasource-only validated; Supabase Session Pooler smoke passed [U-2026-11-21] |
 | PostgreSQL (dev) | Supabase PostgreSQL 17.12 | Connection verified via Session Pooler, port 5432; `db:smoke` passed [U-2026-11-21] |
-| PostgreSQL (local/test) | No local installation | Not installed by coordinator decision; Supabase remains the online development database. Test database isolation strategy remains pending for P0-TD-02. |
+| PostgreSQL (local/test) | No local installation | Not installed yet — native D: installation method approved by group on 2026-11-23; PostgreSQL version and paths pending presentation and explicit installation approval. Supabase remains the online development database. Test database isolation strategy remains pending for P0-TD-02. |
 
 `apps/api/.env.example` contains placeholder `DATABASE_URL` for Supabase Session Pooler and `CHECKPOINT_DISABLE=1` [U-2026-11-21].
 
@@ -73,7 +73,7 @@ Note: `packages/contracts/validate.sh` defaults to `docs/05_API_Documentation_v1
 ## 5. Pending Compatibility Verification
 
 - Full Prisma ORM compatibility with application models and migrations (P1-BE-01); current verification covers datasource-only schema and connectivity.
-- Local/test PostgreSQL: no local installation by coordinator decision; define an appropriate isolated test database strategy for P0-TD-02.
+- Local/test PostgreSQL: Not installed yet — native D: installation method approved by group on 2026-11-23; PostgreSQL version and paths pending presentation and explicit installation approval. Define an appropriate isolated test database strategy for P0-TD-02.
 - Prisma 6.19.3 against PostgreSQL and NestJS 10 / TypeScript 5.9.3.
 - Express type compatibility: `@types/express` 4.17.25 aligned with Express 4.22.1; API typecheck and build passed [U-2026-11-22].
 - OpenAPI lint.
