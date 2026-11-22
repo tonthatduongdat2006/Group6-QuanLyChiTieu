@@ -1,0 +1,77 @@
+{
+  "$schema": "../fixture.schema.json",
+  "id": "scan.readable",
+  "kind": "scan",
+  "group": "scan",
+  "description": "Hóa đơn tổng hợp đọc được đầy đủ; tổng món = tổng hóa đơn.",
+  "refs": [
+    "FR-11",
+    "AC-21",
+    "AC-25",
+    "IT-SCAN",
+    "test-strategy §6"
+  ],
+  "clock": {
+    "now": "2026-11-15T09:00:00+07:00",
+    "timezone": "Asia/Ho_Chi_Minh"
+  },
+  "input": {
+    "image": {
+      "synthetic": true,
+      "seed": "scan-readable-v1",
+      "width": 240,
+      "height": 360,
+      "lines": [
+        "QUAN MAU (DU LIEU GIA)",
+        "Pho bo 50000",
+        "Tra da 5000",
+        "TONG 55000"
+      ]
+    }
+  },
+  "provider": {
+    "result": "output",
+    "output": {
+      "is_receipt": true,
+      "merchant_name": "Quán Mẫu (dữ liệu giả)",
+      "date": "2026-11-15",
+      "total": "55000",
+      "items": [
+        {
+          "name": "Phở bò",
+          "amount": "50000"
+        },
+        {
+          "name": "Trà đá",
+          "amount": "5000"
+        }
+      ]
+    }
+  },
+  "expected": {
+    "outcome_any_of": [
+      "DRAFTS"
+    ],
+    "persists_transaction": false,
+    "creates_draft": true,
+    "confirmable": true,
+    "drafts": [
+      {
+        "transaction_type": "EXPENSE",
+        "amount": "55000",
+        "merchant_name": "Quán Mẫu (dữ liệu giả)",
+        "items": [
+          {
+            "item_name": "Phở bò",
+            "amount": "50000"
+          },
+          {
+            "item_name": "Trà đá",
+            "amount": "5000"
+          }
+        ]
+      }
+    ],
+    "notes": "AC-25: model không chọn danh mục; category_id của draft vẫn null."
+  }
+}

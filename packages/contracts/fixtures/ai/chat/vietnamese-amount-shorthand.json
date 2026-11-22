@@ -1,0 +1,71 @@
+{
+  "$schema": "../fixture.schema.json",
+  "id": "chat.vietnamese-amount-shorthand",
+  "kind": "chat",
+  "group": "chat",
+  "description": "Cách viết số tiền tiếng Việt: '2 củ' = 2.000.000, '1tr' = 1.000.000, '45k' = 45.000.",
+  "refs": [
+    "FR-10",
+    "AC-15",
+    "IT-CHAT",
+    "test-strategy §6"
+  ],
+  "clock": {
+    "now": "2026-11-15T09:00:00+07:00",
+    "timezone": "Asia/Ho_Chi_Minh"
+  },
+  "input": {
+    "message": "Được thưởng 2 củ, mua giày 1tr, ăn trưa 45k"
+  },
+  "provider": {
+    "result": "output",
+    "output": {
+      "intent": "NEW_TRANSACTIONS",
+      "reply": "Mình ghi nhận 1 khoản thu và 2 khoản chi.",
+      "transactions": [
+        {
+          "type": "INCOME",
+          "amount": "2000000",
+          "category_name": "Thưởng",
+          "date": "2026-11-15",
+          "note": "thưởng"
+        },
+        {
+          "type": "EXPENSE",
+          "amount": "1000000",
+          "category_name": "Mua sắm",
+          "date": "2026-11-15",
+          "note": "mua giày"
+        },
+        {
+          "type": "EXPENSE",
+          "amount": "45000",
+          "category_name": "Ăn uống",
+          "date": "2026-11-15",
+          "note": "ăn trưa"
+        }
+      ]
+    }
+  },
+  "expected": {
+    "outcome_any_of": [
+      "DRAFTS"
+    ],
+    "persists_transaction": false,
+    "creates_draft": true,
+    "drafts": [
+      {
+        "transaction_type": "INCOME",
+        "amount": "2000000"
+      },
+      {
+        "transaction_type": "EXPENSE",
+        "amount": "1000000"
+      },
+      {
+        "transaction_type": "EXPENSE",
+        "amount": "45000"
+      }
+    ]
+  }
+}

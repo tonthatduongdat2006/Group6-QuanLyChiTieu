@@ -1,0 +1,53 @@
+{
+  "$schema": "../fixture.schema.json",
+  "id": "chat.ambiguous-revision",
+  "kind": "chat",
+  "group": "chat",
+  "description": "Hai draft cùng 30k, yêu cầu sửa không rõ draft nào → hỏi lại, không đoán.",
+  "refs": [
+    "FR-10",
+    "AC-16",
+    "IT-CHAT",
+    "test-strategy §6"
+  ],
+  "clock": {
+    "now": "2026-11-15T09:00:00+07:00",
+    "timezone": "Asia/Ho_Chi_Minh"
+  },
+  "input": {
+    "message": "Sửa khoản 30k thành 35k",
+    "pending_drafts": [
+      {
+        "ref": "d1",
+        "transaction_type": "EXPENSE",
+        "amount": "30000",
+        "transaction_date": "2026-11-15",
+        "note": "cà phê",
+        "status": "READY"
+      },
+      {
+        "ref": "d2",
+        "transaction_type": "EXPENSE",
+        "amount": "30000",
+        "transaction_date": "2026-11-15",
+        "note": "trà sữa",
+        "status": "READY"
+      }
+    ]
+  },
+  "provider": {
+    "result": "output",
+    "output": {
+      "intent": "CLARIFY",
+      "reply": "Bạn muốn sửa khoản cà phê hay trà sữa?",
+      "transactions": []
+    }
+  },
+  "expected": {
+    "outcome_any_of": [
+      "CLARIFICATION"
+    ],
+    "persists_transaction": false,
+    "creates_draft": false
+  }
+}

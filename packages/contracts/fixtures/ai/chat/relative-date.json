@@ -1,0 +1,49 @@
+{
+  "$schema": "../fixture.schema.json",
+  "id": "chat.relative-date",
+  "kind": "chat",
+  "group": "chat",
+  "description": "Ngày tương đối 'hôm qua' tính theo đồng hồ cố định Asia/Ho_Chi_Minh.",
+  "refs": [
+    "FR-10",
+    "IT-CHAT",
+    "test-strategy §6"
+  ],
+  "clock": {
+    "now": "2026-11-15T09:00:00+07:00",
+    "timezone": "Asia/Ho_Chi_Minh"
+  },
+  "input": {
+    "message": "Hôm qua đổ xăng 80k"
+  },
+  "provider": {
+    "result": "output",
+    "output": {
+      "intent": "NEW_TRANSACTIONS",
+      "reply": "Đã ghi nhận khoản đổ xăng hôm qua.",
+      "transactions": [
+        {
+          "type": "EXPENSE",
+          "amount": "80000",
+          "category_name": "Di chuyển",
+          "date": "2026-11-14",
+          "note": "đổ xăng"
+        }
+      ]
+    }
+  },
+  "expected": {
+    "outcome_any_of": [
+      "DRAFTS"
+    ],
+    "persists_transaction": false,
+    "creates_draft": true,
+    "drafts": [
+      {
+        "transaction_type": "EXPENSE",
+        "amount": "80000",
+        "transaction_date": "2026-11-14"
+      }
+    ]
+  }
+}

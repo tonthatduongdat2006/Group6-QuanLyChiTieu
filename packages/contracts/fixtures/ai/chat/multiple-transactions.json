@@ -1,0 +1,67 @@
+{
+  "$schema": "../fixture.schema.json",
+  "id": "chat.multiple-transactions",
+  "kind": "chat",
+  "group": "chat",
+  "description": "Hai giao dịch trong một tin nhắn → hai draft riêng.",
+  "refs": [
+    "FR-10",
+    "AC-15",
+    "IT-CHAT",
+    "test-strategy §6"
+  ],
+  "clock": {
+    "now": "2026-11-15T09:00:00+07:00",
+    "timezone": "Asia/Ho_Chi_Minh"
+  },
+  "input": {
+    "message": "Hôm nay ăn phở 45 nghìn, cà phê 30k"
+  },
+  "provider": {
+    "result": "output",
+    "output": {
+      "intent": "NEW_TRANSACTIONS",
+      "reply": "Mình ghi nhận 2 khoản chi.",
+      "transactions": [
+        {
+          "type": "EXPENSE",
+          "amount": "45000",
+          "category_name": "Ăn uống",
+          "date": "2026-11-15",
+          "note": "ăn phở"
+        },
+        {
+          "type": "EXPENSE",
+          "amount": "30000",
+          "category_name": "Ăn uống",
+          "date": "2026-11-15",
+          "note": "cà phê"
+        }
+      ]
+    }
+  },
+  "expected": {
+    "outcome_any_of": [
+      "DRAFTS"
+    ],
+    "persists_transaction": false,
+    "creates_draft": true,
+    "drafts": [
+      {
+        "transaction_type": "EXPENSE",
+        "amount": "45000",
+        "transaction_date": "2026-11-15",
+        "category_name_hint": "Ăn uống"
+      },
+      {
+        "transaction_type": "EXPENSE",
+        "amount": "30000",
+        "transaction_date": "2026-11-15",
+        "category_name_hint": "Ăn uống"
+      }
+    ],
+    "forbidden_draft_statuses": [
+      "CONFIRMED"
+    ]
+  }
+}

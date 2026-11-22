@@ -1,0 +1,34 @@
+{
+  "$schema": "../fixture.schema.json",
+  "id": "error.chat-server-error",
+  "kind": "chat",
+  "group": "error",
+  "description": "Provider trả 5xx → AI_PROVIDER_ERROR.",
+  "refs": [
+    "FR-10",
+    "IT-PROVIDER-MAP",
+    "test-strategy §6"
+  ],
+  "clock": {
+    "now": "2026-11-15T09:00:00+07:00",
+    "timezone": "Asia/Ho_Chi_Minh"
+  },
+  "input": {
+    "message": "Ăn phở 45k"
+  },
+  "provider": {
+    "result": "error",
+    "error": {
+      "kind": "server_error",
+      "http_status": 503
+    }
+  },
+  "expected": {
+    "outcome_any_of": [
+      "ERROR"
+    ],
+    "error_code": "AI_PROVIDER_ERROR",
+    "persists_transaction": false,
+    "creates_draft": false
+  }
+}

@@ -1,0 +1,55 @@
+{
+  "$schema": "../fixture.schema.json",
+  "id": "scan.blurry",
+  "kind": "scan",
+  "group": "scan",
+  "description": "Ảnh mờ: không đọc được món và tổng → mọi trường cần thiết bị đánh dấu thiếu.",
+  "refs": [
+    "FR-11",
+    "AC-22",
+    "IT-SCAN",
+    "test-strategy §6"
+  ],
+  "clock": {
+    "now": "2026-11-15T09:00:00+07:00",
+    "timezone": "Asia/Ho_Chi_Minh"
+  },
+  "input": {
+    "image": {
+      "synthetic": true,
+      "seed": "scan-blurry-v1",
+      "width": 240,
+      "height": 360,
+      "lines": [
+        "QUAN MAU",
+        "Pho bo 50000",
+        "TONG 50000"
+      ],
+      "blur": true
+    }
+  },
+  "provider": {
+    "result": "output",
+    "output": {
+      "is_receipt": true,
+      "merchant_name": null,
+      "date": null,
+      "total": null,
+      "items": [
+        {
+          "name": null,
+          "amount": null
+        }
+      ]
+    }
+  },
+  "expected": {
+    "outcome_any_of": [
+      "DRAFTS",
+      "ERROR"
+    ],
+    "persists_transaction": false,
+    "confirmable": false,
+    "notes": "Nếu tạo draft: amount và mọi món đều null, cần người dùng nhập."
+  }
+}

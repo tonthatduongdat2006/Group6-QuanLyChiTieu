@@ -1,0 +1,37 @@
+{
+  "$schema": "../fixture.schema.json",
+  "id": "error.chat-invalid-json",
+  "kind": "chat",
+  "group": "error",
+  "description": "Model trả JSON hỏng → không tự lưu; NEEDS_INPUT hoặc AI_PROVIDER_ERROR.",
+  "refs": [
+    "FR-10",
+    "IT-AI-ADV",
+    "IT-PROVIDER-MAP",
+    "test-strategy §6"
+  ],
+  "clock": {
+    "now": "2026-11-15T09:00:00+07:00",
+    "timezone": "Asia/Ho_Chi_Minh"
+  },
+  "input": {
+    "message": "Ăn phở 45k"
+  },
+  "provider": {
+    "result": "raw",
+    "raw": "{\"intent\": \"NEW_TRANSACTIONS\", \"transactions\": [{\"type\": \"EXPENSE\", \"amount\": \"45000\""
+  },
+  "expected": {
+    "outcome_any_of": [
+      "ERROR",
+      "DRAFTS"
+    ],
+    "error_code": "AI_PROVIDER_ERROR",
+    "persists_transaction": false,
+    "forbidden_draft_statuses": [
+      "READY",
+      "CONFIRMED"
+    ],
+    "notes": "IT-AI-ADV cho phép NEEDS_INPUT hoặc từ chối; nếu tạo draft thì chỉ ở NEEDS_INPUT."
+  }
+}

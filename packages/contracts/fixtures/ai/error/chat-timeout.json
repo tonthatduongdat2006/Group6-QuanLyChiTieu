@@ -1,0 +1,33 @@
+{
+  "$schema": "../fixture.schema.json",
+  "id": "error.chat-timeout",
+  "kind": "chat",
+  "group": "error",
+  "description": "Provider hết thời gian chờ → AI_PROVIDER_ERROR, không tạo batch/draft.",
+  "refs": [
+    "FR-10",
+    "IT-PROVIDER-MAP",
+    "test-strategy §6"
+  ],
+  "clock": {
+    "now": "2026-11-15T09:00:00+07:00",
+    "timezone": "Asia/Ho_Chi_Minh"
+  },
+  "input": {
+    "message": "Ăn phở 45k"
+  },
+  "provider": {
+    "result": "error",
+    "error": {
+      "kind": "timeout"
+    }
+  },
+  "expected": {
+    "outcome_any_of": [
+      "ERROR"
+    ],
+    "error_code": "AI_PROVIDER_ERROR",
+    "persists_transaction": false,
+    "creates_draft": false
+  }
+}

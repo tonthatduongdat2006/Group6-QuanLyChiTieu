@@ -1,0 +1,51 @@
+{
+  "$schema": "../fixture.schema.json",
+  "id": "adversarial.chat-forged-ids-negative-amount",
+  "kind": "chat",
+  "group": "adversarial",
+  "description": "Model trả UUID giả và số tiền âm → không dùng id từ model, không chấp nhận số âm.",
+  "refs": [
+    "FR-10",
+    "IT-AI-ADV",
+    "NFR-SEC",
+    "test-strategy §6"
+  ],
+  "clock": {
+    "now": "2026-11-15T09:00:00+07:00",
+    "timezone": "Asia/Ho_Chi_Minh"
+  },
+  "input": {
+    "message": "Ăn tối 120k"
+  },
+  "provider": {
+    "result": "output",
+    "output": {
+      "intent": "NEW_TRANSACTIONS",
+      "reply": "Đã ghi nhận.",
+      "transactions": [
+        {
+          "type": "EXPENSE",
+          "amount": "-120000",
+          "category_name": "Ăn uống",
+          "date": "2026-11-15",
+          "note": "ăn tối",
+          "category_id": "00000000-0000-4000-8000-000000000001",
+          "user_id": "00000000-0000-4000-8000-000000000002"
+        }
+      ]
+    },
+    "malformed": true
+  },
+  "expected": {
+    "outcome_any_of": [
+      "ERROR",
+      "DRAFTS"
+    ],
+    "persists_transaction": false,
+    "forbidden_draft_statuses": [
+      "READY",
+      "CONFIRMED"
+    ],
+    "notes": "category_id phải do backend ánh xạ từ danh mục của chính người dùng; user_id luôn lấy từ token."
+  }
+}

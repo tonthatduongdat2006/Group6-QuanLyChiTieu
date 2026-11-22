@@ -1,0 +1,57 @@
+{
+  "$schema": "../fixture.schema.json",
+  "id": "chat.revise-pending-draft",
+  "kind": "chat",
+  "group": "chat",
+  "description": "Chỉnh sửa một draft đang chờ → sửa draft đó, không tạo draft mới.",
+  "refs": [
+    "FR-10",
+    "AC-16",
+    "IT-CHAT",
+    "test-strategy §6"
+  ],
+  "clock": {
+    "now": "2026-11-15T09:00:00+07:00",
+    "timezone": "Asia/Ho_Chi_Minh"
+  },
+  "input": {
+    "message": "À phở là 50k chứ không phải 45k",
+    "pending_drafts": [
+      {
+        "ref": "d1",
+        "transaction_type": "EXPENSE",
+        "amount": "45000",
+        "transaction_date": "2026-11-15",
+        "note": "ăn phở",
+        "status": "READY"
+      }
+    ]
+  },
+  "provider": {
+    "result": "output",
+    "output": {
+      "intent": "REVISE_DRAFT",
+      "reply": "Đã sửa khoản phở thành 50.000đ.",
+      "transactions": [],
+      "revision": {
+        "draft_ref": "d1",
+        "changes": {
+          "amount": "50000"
+        }
+      }
+    }
+  },
+  "expected": {
+    "outcome_any_of": [
+      "DRAFT_REVISED"
+    ],
+    "persists_transaction": false,
+    "creates_draft": false,
+    "revises_draft_ref": "d1",
+    "drafts": [
+      {
+        "amount": "50000"
+      }
+    ]
+  }
+}

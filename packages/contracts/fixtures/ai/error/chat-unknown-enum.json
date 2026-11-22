@@ -1,0 +1,48 @@
+{
+  "$schema": "../fixture.schema.json",
+  "id": "error.chat-unknown-enum",
+  "kind": "chat",
+  "group": "error",
+  "description": "Model trả loại giao dịch không có trong hợp đồng ('TRANSFER') → không chấp nhận như dữ liệu hợp lệ.",
+  "refs": [
+    "FR-10",
+    "IT-AI-ADV",
+    "test-strategy §6"
+  ],
+  "clock": {
+    "now": "2026-11-15T09:00:00+07:00",
+    "timezone": "Asia/Ho_Chi_Minh"
+  },
+  "input": {
+    "message": "Chuyển 500k sang tài khoản tiết kiệm"
+  },
+  "provider": {
+    "result": "output",
+    "output": {
+      "intent": "NEW_TRANSACTIONS",
+      "reply": "Đã ghi nhận.",
+      "transactions": [
+        {
+          "type": "TRANSFER",
+          "amount": "500000",
+          "category_name": null,
+          "date": "2026-11-15",
+          "note": "chuyển tiền"
+        }
+      ]
+    },
+    "malformed": true
+  },
+  "expected": {
+    "outcome_any_of": [
+      "ERROR",
+      "DRAFTS"
+    ],
+    "error_code": "AI_PROVIDER_ERROR",
+    "persists_transaction": false,
+    "forbidden_draft_statuses": [
+      "READY",
+      "CONFIRMED"
+    ]
+  }
+}

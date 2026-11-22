@@ -1,0 +1,43 @@
+{
+  "$schema": "../fixture.schema.json",
+  "id": "error.scan-timeout",
+  "kind": "scan",
+  "group": "error",
+  "description": "Scan: provider hết thời gian chờ → AI_PROVIDER_ERROR, không batch/draft.",
+  "refs": [
+    "FR-11",
+    "IT-SCAN-FAIL",
+    "test-strategy §6"
+  ],
+  "clock": {
+    "now": "2026-11-15T09:00:00+07:00",
+    "timezone": "Asia/Ho_Chi_Minh"
+  },
+  "input": {
+    "image": {
+      "synthetic": true,
+      "seed": "scan-timeout-v1",
+      "width": 240,
+      "height": 360,
+      "lines": [
+        "QUAN MAU (DU LIEU GIA)",
+        "Pho bo 50000",
+        "TONG 50000"
+      ]
+    }
+  },
+  "provider": {
+    "result": "error",
+    "error": {
+      "kind": "timeout"
+    }
+  },
+  "expected": {
+    "outcome_any_of": [
+      "ERROR"
+    ],
+    "error_code": "AI_PROVIDER_ERROR",
+    "persists_transaction": false,
+    "creates_draft": false
+  }
+}

@@ -1,0 +1,49 @@
+{
+  "$schema": "../fixture.schema.json",
+  "id": "chat.timezone-boundary",
+  "kind": "chat",
+  "group": "chat",
+  "description": "06:30 giờ VN (= 23:30 UTC hôm trước): 'hôm nay' phải là ngày theo giờ VN, không phải ngày UTC.",
+  "refs": [
+    "FR-10",
+    "IT-CHAT",
+    "test-strategy §6"
+  ],
+  "clock": {
+    "now": "2026-11-15T06:30:00+07:00",
+    "timezone": "Asia/Ho_Chi_Minh"
+  },
+  "input": {
+    "message": "Hôm nay ăn sáng bánh mì 25k"
+  },
+  "provider": {
+    "result": "output",
+    "output": {
+      "intent": "NEW_TRANSACTIONS",
+      "reply": "Đã ghi nhận bữa sáng.",
+      "transactions": [
+        {
+          "type": "EXPENSE",
+          "amount": "25000",
+          "category_name": "Ăn uống",
+          "date": "2026-11-15",
+          "note": "bánh mì"
+        }
+      ]
+    }
+  },
+  "expected": {
+    "outcome_any_of": [
+      "DRAFTS"
+    ],
+    "persists_transaction": false,
+    "creates_draft": true,
+    "drafts": [
+      {
+        "transaction_type": "EXPENSE",
+        "amount": "25000",
+        "transaction_date": "2026-11-15"
+      }
+    ]
+  }
+}

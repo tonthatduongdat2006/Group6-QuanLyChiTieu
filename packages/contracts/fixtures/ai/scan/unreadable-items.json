@@ -1,0 +1,77 @@
+{
+  "$schema": "../fixture.schema.json",
+  "id": "scan.unreadable-items",
+  "kind": "scan",
+  "group": "scan",
+  "description": "Một món không đọc được tên và giá → đánh dấu thiếu, không tự điền.",
+  "refs": [
+    "FR-11",
+    "AC-22",
+    "IT-SCAN",
+    "test-strategy §6"
+  ],
+  "clock": {
+    "now": "2026-11-15T09:00:00+07:00",
+    "timezone": "Asia/Ho_Chi_Minh"
+  },
+  "input": {
+    "image": {
+      "synthetic": true,
+      "seed": "scan-unreadable-items-v1",
+      "width": 240,
+      "height": 360,
+      "lines": [
+        "QUAN MAU (DU LIEU GIA)",
+        "Com tam 40000",
+        "######## #####",
+        "TONG 60000"
+      ]
+    }
+  },
+  "provider": {
+    "result": "output",
+    "output": {
+      "is_receipt": true,
+      "merchant_name": "Quán Mẫu (dữ liệu giả)",
+      "date": "2026-11-15",
+      "total": "60000",
+      "items": [
+        {
+          "name": "Cơm tấm",
+          "amount": "40000"
+        },
+        {
+          "name": null,
+          "amount": null
+        }
+      ]
+    }
+  },
+  "expected": {
+    "outcome_any_of": [
+      "DRAFTS"
+    ],
+    "persists_transaction": false,
+    "creates_draft": true,
+    "confirmable": false,
+    "drafts": [
+      {
+        "amount": "60000",
+        "missing_fields": [
+          "items[2].item_name",
+          "items[2].amount"
+        ],
+        "items": [
+          {
+            "item_name": "Cơm tấm",
+            "amount": "40000"
+          },
+          {
+            "item_name": null,
+            "amount": null
+          }
+        ]
+      }
+    ]
+  }
+}

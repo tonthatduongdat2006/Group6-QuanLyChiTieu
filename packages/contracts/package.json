@@ -8,7 +8,8 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "validate:fixtures": "python3 fixtures/ai/validate_fixtures.py --self-test"
   },
   "devDependencies": {
     "typescript": "6.0.3"

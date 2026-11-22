@@ -1,0 +1,34 @@
+{
+  "$schema": "../fixture.schema.json",
+  "id": "chat.no-transaction",
+  "kind": "chat",
+  "group": "chat",
+  "description": "Tin nhắn không chứa giao dịch → không tạo draft.",
+  "refs": [
+    "FR-10",
+    "IT-CHAT",
+    "test-strategy §6"
+  ],
+  "clock": {
+    "now": "2026-11-15T09:00:00+07:00",
+    "timezone": "Asia/Ho_Chi_Minh"
+  },
+  "input": {
+    "message": "Chào bạn, hôm nay trời đẹp quá"
+  },
+  "provider": {
+    "result": "output",
+    "output": {
+      "intent": "NONE",
+      "reply": "Chào bạn! Bạn muốn ghi khoản thu chi nào không?",
+      "transactions": []
+    }
+  },
+  "expected": {
+    "outcome_any_of": [
+      "NO_TRANSACTION"
+    ],
+    "persists_transaction": false,
+    "creates_draft": false
+  }
+}

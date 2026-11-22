@@ -1,0 +1,52 @@
+{
+  "$schema": "../fixture.schema.json",
+  "id": "chat.missing-amount",
+  "kind": "chat",
+  "group": "chat",
+  "description": "Thiếu số tiền → draft NEEDS_INPUT, không đoán số tiền.",
+  "refs": [
+    "FR-10",
+    "IT-CHAT",
+    "test-strategy §6"
+  ],
+  "clock": {
+    "now": "2026-11-15T09:00:00+07:00",
+    "timezone": "Asia/Ho_Chi_Minh"
+  },
+  "input": {
+    "message": "Sáng nay đi taxi"
+  },
+  "provider": {
+    "result": "output",
+    "output": {
+      "intent": "NEW_TRANSACTIONS",
+      "reply": "Chuyến taxi hết bao nhiêu tiền?",
+      "transactions": [
+        {
+          "type": "EXPENSE",
+          "amount": null,
+          "category_name": "Di chuyển",
+          "date": "2026-11-15",
+          "note": "đi taxi"
+        }
+      ]
+    }
+  },
+  "expected": {
+    "outcome_any_of": [
+      "DRAFTS"
+    ],
+    "persists_transaction": false,
+    "creates_draft": true,
+    "drafts": [
+      {
+        "transaction_type": "EXPENSE",
+        "amount": null,
+        "status": "NEEDS_INPUT",
+        "missing_fields": [
+          "amount"
+        ]
+      }
+    ]
+  }
+}

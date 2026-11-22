@@ -1,0 +1,49 @@
+{
+  "$schema": "../fixture.schema.json",
+  "id": "chat.income",
+  "kind": "chat",
+  "group": "chat",
+  "description": "Khoản thu nhập.",
+  "refs": [
+    "FR-10",
+    "AC-15",
+    "IT-CHAT",
+    "test-strategy §6"
+  ],
+  "clock": {
+    "now": "2026-11-15T09:00:00+07:00",
+    "timezone": "Asia/Ho_Chi_Minh"
+  },
+  "input": {
+    "message": "Nhận lương tháng 11 là 15 triệu"
+  },
+  "provider": {
+    "result": "output",
+    "output": {
+      "intent": "NEW_TRANSACTIONS",
+      "reply": "Đã ghi nhận khoản lương.",
+      "transactions": [
+        {
+          "type": "INCOME",
+          "amount": "15000000",
+          "category_name": "Lương",
+          "date": "2026-11-15",
+          "note": "lương tháng 11"
+        }
+      ]
+    }
+  },
+  "expected": {
+    "outcome_any_of": [
+      "DRAFTS"
+    ],
+    "persists_transaction": false,
+    "creates_draft": true,
+    "drafts": [
+      {
+        "transaction_type": "INCOME",
+        "amount": "15000000"
+      }
+    ]
+  }
+}

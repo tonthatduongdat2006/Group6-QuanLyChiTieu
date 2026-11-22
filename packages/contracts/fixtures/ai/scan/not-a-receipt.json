@@ -1,0 +1,46 @@
+{
+  "$schema": "../fixture.schema.json",
+  "id": "scan.not-a-receipt",
+  "kind": "scan",
+  "group": "scan",
+  "description": "Ảnh không phải hóa đơn → không tạo giao dịch; backend từ chối hoặc báo không có dữ liệu.",
+  "refs": [
+    "FR-11",
+    "IT-SCAN",
+    "test-strategy §6"
+  ],
+  "clock": {
+    "now": "2026-11-15T09:00:00+07:00",
+    "timezone": "Asia/Ho_Chi_Minh"
+  },
+  "input": {
+    "image": {
+      "synthetic": true,
+      "seed": "scan-not-a-receipt-v1",
+      "width": 240,
+      "height": 360,
+      "lines": [
+        "ANH PHONG CANH (DU LIEU GIA)"
+      ]
+    }
+  },
+  "provider": {
+    "result": "output",
+    "output": {
+      "is_receipt": false,
+      "merchant_name": null,
+      "date": null,
+      "total": null,
+      "items": []
+    }
+  },
+  "expected": {
+    "outcome_any_of": [
+      "NO_TRANSACTION",
+      "ERROR"
+    ],
+    "persists_transaction": false,
+    "creates_draft": false,
+    "notes": "Planning chưa chốt mã phản hồi cụ thể cho ảnh không phải hóa đơn; nếu là ERROR thì dùng AI_PROVIDER_ERROR ('unusable response')."
+  }
+}

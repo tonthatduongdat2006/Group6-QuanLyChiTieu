@@ -1,0 +1,74 @@
+{
+  "$schema": "../fixture.schema.json",
+  "id": "scan.total-mismatch",
+  "kind": "scan",
+  "group": "scan",
+  "description": "Tổng món (80.000) khác tổng hóa đơn (90.000) → không thể xác nhận cho tới khi người dùng sửa.",
+  "refs": [
+    "FR-11",
+    "AC-23",
+    "IT-SCAN",
+    "test-strategy §6"
+  ],
+  "clock": {
+    "now": "2026-11-15T09:00:00+07:00",
+    "timezone": "Asia/Ho_Chi_Minh"
+  },
+  "input": {
+    "image": {
+      "synthetic": true,
+      "seed": "scan-total-mismatch-v1",
+      "width": 240,
+      "height": 360,
+      "lines": [
+        "CUA HANG MAU (DU LIEU GIA)",
+        "Banh mi 50000",
+        "Sua tuoi 30000",
+        "TONG 90000"
+      ]
+    }
+  },
+  "provider": {
+    "result": "output",
+    "output": {
+      "is_receipt": true,
+      "merchant_name": "Cửa hàng Mẫu (dữ liệu giả)",
+      "date": "2026-11-15",
+      "total": "90000",
+      "items": [
+        {
+          "name": "Bánh mì",
+          "amount": "50000"
+        },
+        {
+          "name": "Sữa tươi",
+          "amount": "30000"
+        }
+      ]
+    }
+  },
+  "expected": {
+    "outcome_any_of": [
+      "DRAFTS"
+    ],
+    "persists_transaction": false,
+    "creates_draft": true,
+    "confirmable": false,
+    "drafts": [
+      {
+        "amount": "90000",
+        "items": [
+          {
+            "item_name": "Bánh mì",
+            "amount": "50000"
+          },
+          {
+            "item_name": "Sữa tươi",
+            "amount": "30000"
+          }
+        ]
+      }
+    ],
+    "notes": "Mã lỗi khi cố xác nhận: RECEIPT_TOTAL_MISMATCH (API v1.1 §12), kiểm ở test xác nhận, không ở fixture này."
+  }
+}
