@@ -34,11 +34,7 @@ export class FakeAIProviderError extends Error {
   readonly httpStatus: number | undefined;
   readonly fixtureId: string;
 
-  constructor(
-    kind: ProviderErrorKind,
-    fixtureId: string,
-    httpStatus?: number,
-  ) {
+  constructor(kind: ProviderErrorKind, fixtureId: string, httpStatus?: number) {
     super(`Fake AI provider error: ${kind} (fixture ${fixtureId})`);
     this.name = 'FakeAIProviderError';
     this.kind = kind;
@@ -92,9 +88,7 @@ export class FakeAIProvider implements AIProvider {
     }
   }
 
-  async parseTransactions(
-    input: ChatProviderInput,
-  ): Promise<ProviderResponse> {
+  async parseTransactions(input: ChatProviderInput): Promise<ProviderResponse> {
     const fixture = this.next('chat', 'parseTransactions');
     this.calls.push({
       method: 'parseTransactions',

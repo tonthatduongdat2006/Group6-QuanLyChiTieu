@@ -114,10 +114,7 @@ export function withSchema(url: string, schema: string): string {
 /** Raw SQL surface shared by PrismaClient and its transaction client. */
 export interface RawSql {
   $executeRawUnsafe(query: string, ...values: unknown[]): Promise<number>;
-  $queryRawUnsafe<T = unknown>(
-    query: string,
-    ...values: unknown[]
-  ): Promise<T>;
+  $queryRawUnsafe<T = unknown>(query: string, ...values: unknown[]): Promise<T>;
 }
 
 /** Minimal surface of PrismaClient used by the harness. */

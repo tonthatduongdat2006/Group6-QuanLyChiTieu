@@ -18,11 +18,7 @@ import { toVnDate } from '../helpers/clock';
 export type TransactionType = 'INCOME' | 'EXPENSE';
 export type TransactionSource = 'MANUAL' | 'AI_CHAT' | 'AI_SCAN';
 export type DraftStatus =
-  | 'NEEDS_INPUT'
-  | 'READY'
-  | 'CONFIRMED'
-  | 'CANCELLED'
-  | 'EXPIRED';
+  'NEEDS_INPUT' | 'READY' | 'CONFIRMED' | 'CANCELLED' | 'EXPIRED';
 export type BatchSourceType = 'AI_CHAT' | 'AI_SCAN';
 
 export interface UserRecord {

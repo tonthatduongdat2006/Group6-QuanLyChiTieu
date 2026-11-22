@@ -65,7 +65,7 @@ export class FixedClock implements Clock {
 export interface FakeTimersHost {
   useFakeTimers(config?: {
     now?: number | Date;
-    doNotFake?: string[];
+    doNotFake?: ('nextTick' | 'setImmediate' | 'queueMicrotask')[];
   }): unknown;
 }
 
