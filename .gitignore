@@ -1,0 +1,14 @@
+﻿node_modules/
+node_modules.backup*/
+dist/
+coverage/
+.expo/
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+
+# Local package and tool caches
+.npm/
+.pnpm-store/

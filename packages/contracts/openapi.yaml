@@ -1,0 +1,2733 @@
+openapi: 3.1.0
+info:
+  title: AI Smart Expense API
+  description: |
+    REST API for the Quản Lý Chi Tiêu – AI Smart Expense application.
+
+    **Source baseline:** API Documentation v1.1 (QLCT-API-001), sections 2–10.
+    **Operation count:** 44 HTTP operations.
+    **Base path:** /api/v1
+
+    ### Key conventions
+    - Bearer access token required on all protected endpoints.
+    - Money amounts are positive integers in VND, encoded as decimal strings in JSON (e.g. "45000").
+    - Dates use `YYYY-MM-DD`; timestamps use ISO 8601 UTC.
+    - UUIDs for all identifiers.
+    - `Idempotency-Key` header required on retryable mutations; same key + same payload replays original result; same key + different payload returns 409 IDEMPOTENCY_KEY_REUSED.
+    - Saving Jars: exactly 6 operations (list, create, detail, deposit, withdrawal, transfer history). No PATCH or DELETE.
+    - Transaction soft-delete: D-12a/D-12b (GROUP APPROVED) — DELETE sets `deleted_at`; receipt child rows are retained; deleted transactions are excluded from all aggregates. See operation description for details.
+    - Available balance invariant (D-07): every balance-affecting mutation is guarded; 422 INSUFFICIENT_BALANCE is returned and the entire operation rolls back if projected balance would be negative.
+    - AI never creates or confirms transactions automatically; user confirmation is always required.
+
+  version: 1.1.0
+  contact:
+    name: AI Smart Expense Team
+
+servers:
+  - url: https://{host}/api/v1
+    description: Backend API server (host configured per environment)
+    variables:
+      host:
+        default: localhost:3000
+        description: >
+          Backend hostname and port. Set to the deployed backend address in
+          testing/production environments.
+
+security:
+  - bearerAuth: []
+
+# ---------------------------------------------------------------------------
+# Reusable components
+# ---------------------------------------------------------------------------
+components:
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: >
+        Short-lived access token obtained from POST /auth/login or POST
+        /auth/refresh. Include as `Authorization: Bearer <access_token>`.
+
+  # -------------------------------------------------------------------------
+  # Parameters
+  # -------------------------------------------------------------------------
+  parameters:
+
+    IdempotencyKeyRequired:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: >
+        Client-generated unique key (UUID or equivalent) scoped to the user
+        and operation. Replaying the same key with the same normalized request
+        payload returns the original result without side effects. Using the same
+        key with a different payload returns 409 IDEMPOTENCY_KEY_REUSED.
+        Generate a new key when the payload/intent changes.
+      schema:
+        type: string
+        maxLength: 128
+
+    IdempotencyKeySupported:
+      name: Idempotency-Key
+      in: header
+      required: false
+      description: >
+        Optional idempotency key. Strongly recommended for safe retry of
+        financial mutations. Same semantics as the required variant when
+        provided.
+      schema:
+        type: string
+        maxLength: 128
+
+    TransactionId:
+      name: transactionId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: UUID of the transaction.
+
+    BudgetId:
+      name: budgetId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: UUID of the budget.
+
+    JarId:
+      name: jarId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: UUID of the saving jar.
+
+    ConversationId:
+      name: conversationId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: UUID of the AI conversation.
+
+    DraftId:
+      name: draftId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: UUID of the AI draft.
+
+    BatchId:
+      name: batchId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: UUID of the AI draft batch.
+
+    ItemId:
+      name: itemId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: UUID of the AI draft item.
+
+    MonthParam:
+      name: month
+      in: query
+      required: false
+      schema:
+        type: string
+        pattern: '^\d{4}-(0[1-9]|1[0-2])$'
+        example: '2026-11'
+      description: Month filter in YYYY-MM format.
+
+    PageParam:
+      name: page
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+      description: Page number (1-based).
+
+    PageSizeParam:
+      name: page_size
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+      description: Number of items per page (bounded server-side).
+
+  # -------------------------------------------------------------------------
+  # Schemas
+  # -------------------------------------------------------------------------
+  schemas:
+
+    # --- Primitives ---
+
+    UUIDString:
+      type: string
+      format: uuid
+      description: UUID identifier.
+      example: '550e8400-e29b-41d4-a716-446655440000'
+
+    MoneyString:
+      type: string
+      pattern: '^[1-9]\d*$'
+      description: >
+        Positive VND amount as a decimal string (e.g. "45000"). Encoded as
+        string to avoid JavaScript safe-integer overflow for large BIGINT values.
+      example: '45000'
+
+    MoneyStringNullable:
+      type: ['string', 'null']
+      pattern: '^[1-9]\d*$'
+      description: Nullable positive VND amount as decimal string.
+      example: '45000'
+
+    DateString:
+      type: string
+      format: date
+      description: Calendar date in YYYY-MM-DD format.
+      example: '2026-11-10'
+
+    TimestampString:
+      type: string
+      format: date-time
+      description: UTC timestamp in ISO 8601 format.
+      example: '2026-11-10T08:30:00Z'
+
+    TransactionType:
+      type: string
+      enum: [INCOME, EXPENSE]
+      description: Transaction type.
+
+    TransactionSource:
+      type: string
+      enum: [MANUAL, AI_CHAT, AI_SCAN]
+      description: How the transaction was created.
+
+    JarTransactionType:
+      type: string
+      enum: [DEPOSIT, WITHDRAW]
+      description: Savings jar transfer direction.
+
+    DraftStatus:
+      type: string
+      enum: [NEEDS_INPUT, READY, CONFIRMED, CANCELLED, EXPIRED]
+      description: AI draft lifecycle status.
+
+    MessageRole:
+      type: string
+      enum: [USER, ASSISTANT]
+      description: AI message sender role.
+
+    BatchSourceType:
+      type: string
+      enum: [AI_CHAT, AI_SCAN]
+      description: How the AI draft batch was created.
+
+    # --- Envelopes ---
+
+    ErrorDetail:
+      type: object
+      required: [field, message]
+      properties:
+        field:
+          type: string
+          description: Field name that failed validation.
+          example: amount
+        message:
+          type: string
+          description: Human-readable Vietnamese error message.
+          example: 'Số tiền phải lớn hơn 0'
+
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message, request_id]
+          properties:
+            code:
+              type: string
+              enum:
+                - BAD_REQUEST
+                - UNAUTHORIZED
+                - FORBIDDEN
+                - NOT_FOUND
+                - CONFLICT
+                - IDEMPOTENCY_KEY_REUSED
+                - VALIDATION_ERROR
+                - BATCH_INVALID
+                - INSUFFICIENT_BALANCE
+                - INSUFFICIENT_JAR_BALANCE
+                - RECEIPT_TOTAL_MISMATCH
+                - RATE_LIMITED
+                - INTERNAL_SERVER_ERROR
+                - AI_PROVIDER_ERROR
+                - SERVICE_UNAVAILABLE
+              description: Machine-readable error code.
+              example: VALIDATION_ERROR
+            message:
+              type: string
+              description: Human-readable Vietnamese error message.
+              example: 'Dữ liệu không hợp lệ'
+            details:
+              type: array
+              items:
+                $ref: '#/components/schemas/ErrorDetail'
+              description: Per-field validation details (present for VALIDATION_ERROR).
+            request_id:
+              $ref: '#/components/schemas/UUIDString'
+              description: Correlation ID for support/debugging.
+
+    PaginationMeta:
+      type: object
+      required: [page, page_size, total, total_pages]
+      properties:
+        page:
+          type: integer
+          minimum: 1
+          example: 1
+        page_size:
+          type: integer
+          minimum: 1
+          example: 20
+        total:
+          type: integer
+          minimum: 0
+          example: 45
+        total_pages:
+          type: integer
+          minimum: 0
+          example: 3
+
+    # --- Auth ---
+
+    TokenResponse:
+      type: object
+      required: [access_token, refresh_token, token_type, expires_in]
+      properties:
+        access_token:
+          type: string
+          description: Short-lived JWT access token.
+        refresh_token:
+          type: string
+          description: Long-lived opaque refresh token (hash stored server-side).
+        token_type:
+          type: string
+          enum: [Bearer]
+        expires_in:
+          type: integer
+          description: >
+            Access token lifetime in seconds (example value 900; actual value
+            is a configuration decision, not a fixed product requirement).
+          example: 900
+
+    UserProfile:
+      type: object
+      required: [id, full_name, email]
+      properties:
+        id:
+          $ref: '#/components/schemas/UUIDString'
+        full_name:
+          type: string
+          example: 'Nguyen Van A'
+        email:
+          type: string
+          format: email
+          example: 'user@example.com'
+        phone:
+          type: ['string', 'null']
+          example: '+84912345678'
+
+    # --- Categories ---
+
+    Category:
+      type: object
+      required: [id, name, type, is_default]
+      properties:
+        id:
+          $ref: '#/components/schemas/UUIDString'
+        name:
+          type: string
+          example: 'Ăn uống'
+        type:
+          $ref: '#/components/schemas/TransactionType'
+        is_default:
+          type: boolean
+          description: True if this is a system-provisioned default category.
+
+    # --- Transactions ---
+
+    TransactionSummary:
+      type: object
+      required: [id, type, amount, category_id, transaction_date, source, created_at, updated_at]
+      properties:
+        id:
+          $ref: '#/components/schemas/UUIDString'
+        type:
+          $ref: '#/components/schemas/TransactionType'
+        amount:
+          $ref: '#/components/schemas/MoneyString'
+        category_id:
+          $ref: '#/components/schemas/UUIDString'
+        note:
+          type: ['string', 'null']
+        transaction_date:
+          $ref: '#/components/schemas/DateString'
+        source:
+          $ref: '#/components/schemas/TransactionSource'
+        created_at:
+          $ref: '#/components/schemas/TimestampString'
+        updated_at:
+          $ref: '#/components/schemas/TimestampString'
+
+    ReceiptItem:
+      type: object
+      required: [id, item_name, amount, sort_order]
+      properties:
+        id:
+          $ref: '#/components/schemas/UUIDString'
+        item_name:
+          type: string
+          example: 'Phở bò'
+        amount:
+          $ref: '#/components/schemas/MoneyString'
+        sort_order:
+          type: integer
+          minimum: 1
+
+    ReceiptDetail:
+      type: object
+      required: [merchant_name, items]
+      properties:
+        merchant_name:
+          type: ['string', 'null']
+          example: 'Quán Phở A'
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReceiptItem'
+
+    TransactionDetail:
+      allOf:
+        - $ref: '#/components/schemas/TransactionSummary'
+        - type: object
+          properties:
+            category:
+              $ref: '#/components/schemas/Category'
+            receipt:
+              description: >
+                Present only for transactions with source AI_SCAN. Contains
+                merchant name and confirmed receipt items (sum equals
+                transaction amount).
+              oneOf:
+                - $ref: '#/components/schemas/ReceiptDetail'
+                - type: 'null'
+
+    ReceiptItemInput:
+      type: object
+      required: [item_name, amount, sort_order]
+      properties:
+        item_name:
+          type: string
+          minLength: 1
+          example: 'Phở bò'
+        amount:
+          $ref: '#/components/schemas/MoneyString'
+        sort_order:
+          type: integer
+          minimum: 1
+
+    ReceiptUpdateInput:
+      type: object
+      properties:
+        merchant_name:
+          type: ['string', 'null']
+          example: 'Quán A'
+        items:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/ReceiptItemInput'
+          description: >
+            Full replacement of receipt items. Required when amount changes for
+            a receipt transaction. Sum of item amounts must equal the resulting
+            transaction amount or 422 RECEIPT_TOTAL_MISMATCH is returned.
+
+    # --- Budgets ---
+
+    BudgetData:
+      type: object
+      required: [id, category_id, category_name, month_start, limit_amount, spent_amount, remaining_amount, usage_percent]
+      properties:
+        id:
+          $ref: '#/components/schemas/UUIDString'
+        category_id:
+          $ref: '#/components/schemas/UUIDString'
+        category_name:
+          type: string
+          example: 'Ăn uống'
+        month_start:
+          $ref: '#/components/schemas/DateString'
+          description: First day of the budget month (YYYY-MM-01).
+        limit_amount:
+          $ref: '#/components/schemas/MoneyString'
+        spent_amount:
+          $ref: '#/components/schemas/MoneyString'
+          description: Derived from EXPENSE transactions for this category and month. Jar transfers excluded.
+        remaining_amount:
+          $ref: '#/components/schemas/MoneyString'
+          description: limit_amount minus spent_amount (floored at 0 for display).
+        usage_percent:
+          type: number
+          format: float
+          minimum: 0
+          description: spent_amount / limit_amount * 100.
+          example: 72.5
+
+    # --- Saving Jars ---
+
+    SavingJarSummary:
+      type: object
+      required: [id, name, target_amount, current_balance, progress_percent]
+      properties:
+        id:
+          $ref: '#/components/schemas/UUIDString'
+        name:
+          type: string
+          example: 'Du lịch'
+        target_amount:
+          $ref: '#/components/schemas/MoneyString'
+        current_balance:
+          $ref: '#/components/schemas/MoneyString'
+          description: Derived from jar transaction history (DEPOSIT minus WITHDRAW).
+        progress_percent:
+          type: number
+          format: float
+          minimum: 0
+          description: current_balance / target_amount * 100.
+          example: 45.0
+
+    JarTransactionRecord:
+      type: object
+      required: [id, type, amount, transaction_date, created_at]
+      properties:
+        id:
+          $ref: '#/components/schemas/UUIDString'
+        type:
+          $ref: '#/components/schemas/JarTransactionType'
+        amount:
+          $ref: '#/components/schemas/MoneyString'
+        note:
+          type: ['string', 'null']
+        transaction_date:
+          $ref: '#/components/schemas/TimestampString'
+        created_at:
+          $ref: '#/components/schemas/TimestampString'
+
+    SavingJarDetail:
+      allOf:
+        - $ref: '#/components/schemas/SavingJarSummary'
+        - type: object
+          properties:
+            recent_transactions:
+              type: array
+              items:
+                $ref: '#/components/schemas/JarTransactionRecord'
+
+    # --- Dashboard ---
+
+    BudgetAlert:
+      type: object
+      required: [budget_id, category_name, usage_percent, limit_amount, spent_amount]
+      properties:
+        budget_id:
+          $ref: '#/components/schemas/UUIDString'
+        category_name:
+          type: string
+        usage_percent:
+          type: number
+          format: float
+        limit_amount:
+          $ref: '#/components/schemas/MoneyString'
+        spent_amount:
+          $ref: '#/components/schemas/MoneyString'
+
+    DashboardData:
+      type: object
+      required: [available_balance, monthly_income, monthly_expense, recent_transactions, budget_alerts]
+      properties:
+        available_balance:
+          $ref: '#/components/schemas/MoneyString'
+          description: >
+            Derived balance: SUM(INCOME) - SUM(EXPENSE) - SUM(DEPOSIT
+            jar_transactions) + SUM(WITHDRAW jar_transactions). Never negative
+            after any committed mutation (D-07).
+        monthly_income:
+          $ref: '#/components/schemas/MoneyString'
+          description: Total INCOME transactions for the requested month. Jar transfers excluded.
+        monthly_expense:
+          $ref: '#/components/schemas/MoneyString'
+          description: Total EXPENSE transactions for the requested month. Jar transfers excluded.
+        recent_transactions:
+          type: array
+          items:
+            $ref: '#/components/schemas/TransactionSummary'
+          description: Five most recent transactions.
+        budget_alerts:
+          type: array
+          items:
+            $ref: '#/components/schemas/BudgetAlert'
+
+    # --- Statistics ---
+
+    StatisticsOverview:
+      type: object
+      required: [month, total_income, total_expense, net_change]
+      properties:
+        month:
+          type: string
+          pattern: '^\d{4}-(0[1-9]|1[0-2])$'
+          example: '2026-11'
+        total_income:
+          $ref: '#/components/schemas/MoneyString'
+        total_expense:
+          $ref: '#/components/schemas/MoneyString'
+        net_change:
+          type: string
+          description: >
+            net_change = total_income - total_expense. May be negative (more
+            spending than income). Jar transfers excluded.
+          example: '6000000'
+
+    CategoryStatItem:
+      type: object
+      required: [category_id, category_name, amount, percentage]
+      properties:
+        category_id:
+          $ref: '#/components/schemas/UUIDString'
+        category_name:
+          type: string
+        amount:
+          $ref: '#/components/schemas/MoneyString'
+        percentage:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 100
+          description: Share of total for the requested type and month.
+
+    DailyExpensePoint:
+      type: object
+      required: [date, amount]
+      properties:
+        date:
+          $ref: '#/components/schemas/DateString'
+        amount:
+          type: string
+          description: Total EXPENSE for the day (may be "0" for days with no expenses).
+          example: '45000'
+
+    # --- AI Conversations and Messages ---
+
+    AIConversation:
+      type: object
+      required: [id, is_saved, created_at, updated_at]
+      properties:
+        id:
+          $ref: '#/components/schemas/UUIDString'
+        title:
+          type: ['string', 'null']
+          example: 'Chi tiêu tháng 11'
+        is_saved:
+          type: boolean
+          description: Whether the conversation is pinned to the saved history.
+        saved_at:
+          type: ['string', 'null']
+          format: date-time
+        created_at:
+          $ref: '#/components/schemas/TimestampString'
+        updated_at:
+          $ref: '#/components/schemas/TimestampString'
+
+    AIMessage:
+      type: object
+      required: [id, conversation_id, role, content, created_at]
+      properties:
+        id:
+          $ref: '#/components/schemas/UUIDString'
+        conversation_id:
+          $ref: '#/components/schemas/UUIDString'
+        role:
+          $ref: '#/components/schemas/MessageRole'
+        content:
+          type: string
+          example: 'Hôm nay tôi ăn phở 45 nghìn'
+        created_at:
+          $ref: '#/components/schemas/TimestampString'
+
+    # --- AI Drafts ---
+
+    ValidationError:
+      type: object
+      required: [field, message]
+      properties:
+        field:
+          type: string
+        message:
+          type: string
+
+    AIDraftItem:
+      type: object
+      required: [id, sort_order]
+      properties:
+        id:
+          $ref: '#/components/schemas/UUIDString'
+        item_name:
+          type: ['string', 'null']
+          description: Null while unreadable from receipt; required to confirm.
+        amount:
+          $ref: '#/components/schemas/MoneyStringNullable'
+          description: Null while unreadable from receipt; must be > 0 when set.
+        sort_order:
+          type: integer
+          minimum: 1
+
+    AIDraft:
+      type: object
+      required: [id, batch_id, status, created_at, updated_at]
+      properties:
+        id:
+          $ref: '#/components/schemas/UUIDString'
+        batch_id:
+          $ref: '#/components/schemas/UUIDString'
+        transaction_type:
+          type: ['string', 'null']
+          enum: [INCOME, EXPENSE, null]
+          description: Null until determined by AI or user.
+        amount:
+          $ref: '#/components/schemas/MoneyStringNullable'
+        category_id:
+          type: ['string', 'null']
+          format: uuid
+          description: Null until user selects a category.
+        transaction_date:
+          type: ['string', 'null']
+          format: date
+        note:
+          type: ['string', 'null']
+        merchant_name:
+          type: ['string', 'null']
+          description: Receipt merchant name (AI_SCAN drafts only).
+        status:
+          $ref: '#/components/schemas/DraftStatus'
+        validation_errors:
+          type: ['array', 'null']
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          description: Machine-readable missing/invalid field list; null when no errors.
+        transaction_id:
+          type: ['string', 'null']
+          format: uuid
+          description: Set after confirmation; unique non-null FK to transactions.
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AIDraftItem'
+          description: Receipt line items (AI_SCAN drafts only).
+        expires_at:
+          type: ['string', 'null']
+          format: date-time
+          description: Draft expiry timestamp; governed by OQ-07 (retention policy TBD).
+        created_at:
+          $ref: '#/components/schemas/TimestampString'
+        updated_at:
+          $ref: '#/components/schemas/TimestampString'
+
+    AIDraftBatch:
+      type: object
+      required: [id, source_type, created_at]
+      properties:
+        id:
+          $ref: '#/components/schemas/UUIDString'
+        conversation_id:
+          type: ['string', 'null']
+          format: uuid
+          description: Null for standalone AI Scan batches.
+        source_message_id:
+          type: ['string', 'null']
+          format: uuid
+        source_type:
+          $ref: '#/components/schemas/BatchSourceType'
+        drafts:
+          type: array
+          items:
+            $ref: '#/components/schemas/AIDraft'
+        created_at:
+          $ref: '#/components/schemas/TimestampString'
+
+  # -------------------------------------------------------------------------
+  # Response bodies (reusable)
+  # -------------------------------------------------------------------------
+  responses:
+
+    UnauthorizedError:
+      description: Missing, invalid or expired access token.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: UNAUTHORIZED
+              message: 'Token không hợp lệ hoặc đã hết hạn'
+              request_id: '550e8400-e29b-41d4-a716-446655440000'
+
+    ForbiddenError:
+      description: Authenticated but action not permitted.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    NotFoundError:
+      description: Resource not found or not accessible by this user.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: NOT_FOUND
+              message: 'Không tìm thấy tài nguyên'
+              request_id: '550e8400-e29b-41d4-a716-446655440000'
+
+    ValidationError:
+      description: Field or business validation failed.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: VALIDATION_ERROR
+              message: 'Dữ liệu không hợp lệ'
+              details:
+                - field: amount
+                  message: 'Số tiền phải lớn hơn 0'
+              request_id: '550e8400-e29b-41d4-a716-446655440000'
+
+    InsufficientBalanceError:
+      description: >
+        Operation would make available balance negative (D-07). The entire
+        operation rolls back. The error message should indicate the shortfall
+        amount to help the user understand how much is missing.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: INSUFFICIENT_BALANCE
+              message: 'Số dư khả dụng không đủ để thực hiện giao dịch này'
+              request_id: '550e8400-e29b-41d4-a716-446655440000'
+
+    IdempotencyConflictError:
+      description: >
+        Idempotency key was reused with a different normalized request payload.
+        Client must generate a new key for a different intent.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: IDEMPOTENCY_KEY_REUSED
+              message: 'Idempotency key đã được sử dụng với nội dung khác'
+              request_id: '550e8400-e29b-41d4-a716-446655440000'
+
+    RateLimitedError:
+      description: Request or AI rate limit reached.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    InternalServerError:
+      description: Unexpected backend error.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    AIProviderError:
+      description: AI provider failed or returned an unusable response.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+
+# =============================================================================
+# Paths — 44 HTTP operations (API Documentation v1.1, sections 2–10)
+# =============================================================================
+paths:
+
+  # ---------------------------------------------------------------------------
+  # § 2. Authentication and Users
+  # ---------------------------------------------------------------------------
+
+  /auth/register:
+    post:
+      operationId: registerUser
+      tags: [Auth]
+      summary: Register a new user
+      description: >
+        Creates the user account and provisions default categories. Returns the
+        public user profile. Never returns the password hash.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [full_name, email, password, terms_accepted]
+              properties:
+                full_name:
+                  type: string
+                  minLength: 1
+                  example: 'Nguyen Van A'
+                email:
+                  type: string
+                  format: email
+                  example: 'user@example.com'
+                password:
+                  type: string
+                  minLength: 8
+                  description: Minimum 8 characters. Stored as a secure hash; never returned.
+                phone:
+                  type: ['string', 'null']
+                  example: '+84912345678'
+                terms_accepted:
+                  type: boolean
+                  enum: [true]
+                  description: Must be true; request is rejected otherwise.
+      responses:
+        '201':
+          description: User registered successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/UserProfile'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /auth/login:
+    post:
+      operationId: loginUser
+      tags: [Auth]
+      summary: Authenticate and obtain tokens
+      description: >
+        Validates credentials and returns access + refresh tokens.
+        When `remember_me` is true, the client should persist the refresh token
+        in platform secure storage. When false, the session token should be kept
+        only for the current app session and not persisted across restarts.
+        Backend hashes refresh tokens and supports rotation/revocation regardless.
+        Token TTL values are configuration decisions, not fixed product requirements.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                remember_me:
+                  type: boolean
+                  default: false
+                  description: >
+                    Instructs the client on token persistence strategy.
+                    Backend behavior is unaffected by this flag.
+      responses:
+        '200':
+          description: Login successful.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/TokenResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /auth/refresh:
+    post:
+      operationId: refreshToken
+      tags: [Auth]
+      summary: Refresh access token
+      description: >
+        Validates the refresh token, rotates it, and returns new access and
+        refresh tokens. Only the token hash is stored server-side.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refresh_token]
+              properties:
+                refresh_token:
+                  type: string
+      responses:
+        '200':
+          description: Token refreshed.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/TokenResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /auth/logout:
+    post:
+      operationId: logoutUser
+      tags: [Auth]
+      summary: Revoke session and log out
+      description: Revokes the refresh token session. Returns 200 on success.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refresh_token]
+              properties:
+                refresh_token:
+                  type: string
+      responses:
+        '200':
+          description: Session revoked successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /users/me:
+    get:
+      operationId: getCurrentUser
+      tags: [Users]
+      summary: Get current user profile
+      description: Returns the authenticated user's public profile fields.
+      responses:
+        '200':
+          description: Current user profile.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/UserProfile'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    patch:
+      operationId: updateCurrentUser
+      tags: [Users]
+      summary: Update current user profile
+      description: >
+        Updates `full_name` and/or `phone`. Email and password changes use
+        separate secured flows if added in a future version.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                full_name:
+                  type: string
+                  minLength: 1
+                phone:
+                  type: ['string', 'null']
+      responses:
+        '200':
+          description: Profile updated.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/UserProfile'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # ---------------------------------------------------------------------------
+  # § 3. Dashboard
+  # ---------------------------------------------------------------------------
+
+  /dashboard:
+    get:
+      operationId: getDashboard
+      tags: [Dashboard]
+      summary: Get dashboard summary
+      description: >
+        Returns available balance, monthly income/expense, recent transactions
+        and budget alerts for the requested month.
+        Available balance uses the PRD formula:
+        SUM(INCOME) - SUM(EXPENSE) - SUM(DEPOSIT jar_transactions) + SUM(WITHDRAW jar_transactions).
+        Monthly income/expense exclude jar transfers.
+      parameters:
+        - $ref: '#/components/parameters/MonthParam'
+      responses:
+        '200':
+          description: Dashboard data for the requested month.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/DashboardData'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # ---------------------------------------------------------------------------
+  # § 4. Categories
+  # ---------------------------------------------------------------------------
+
+  /categories:
+    get:
+      operationId: listCategories
+      tags: [Categories]
+      summary: List user categories
+      description: Returns all categories owned by the authenticated user.
+      parameters:
+        - name: type
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [INCOME, EXPENSE]
+          description: Filter by category type.
+      responses:
+        '200':
+          description: Category list.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Category'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    post:
+      operationId: createCategory
+      tags: [Categories]
+      summary: Create a custom category
+      description: >
+        Creates a new category for the user. Name must be non-empty and unique
+        (after normalization) per user and type. No rename or delete endpoint
+        exists in v1.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, type]
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  example: 'Mua sắm'
+                type:
+                  $ref: '#/components/schemas/TransactionType'
+      responses:
+        '201':
+          description: Category created.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Category'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '409':
+          description: Category name already exists for this user and type.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # ---------------------------------------------------------------------------
+  # § 5. Transactions
+  # ---------------------------------------------------------------------------
+
+  /transactions:
+    get:
+      operationId: listTransactions
+      tags: [Transactions]
+      summary: List transactions
+      description: >
+        Returns paginated transactions for the authenticated user, optionally
+        filtered by month, type and category. Soft-deleted transactions (D-12a)
+        are excluded.
+      parameters:
+        - $ref: '#/components/parameters/MonthParam'
+        - name: type
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/TransactionType'
+        - name: category_id
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PageSizeParam'
+      responses:
+        '200':
+          description: Paginated transaction list.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TransactionSummary'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    post:
+      operationId: createTransaction
+      tags: [Transactions]
+      summary: Create a manual transaction
+      description: >
+        Creates a manual transaction. `source` is set by the backend to MANUAL;
+        any client-supplied value is ignored.
+
+        **Balance guard (D-07):** for EXPENSE transactions, the backend acquires
+        the per-user balance lock, computes the projected available balance, and
+        rejects with 422 INSUFFICIENT_BALANCE if the result would be negative.
+
+        **Idempotency:** `Idempotency-Key` is required. Same key + same
+        normalized payload returns the original result. Same key + different
+        payload returns 409 IDEMPOTENCY_KEY_REUSED.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKeyRequired'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [type, amount, category_id, transaction_date]
+              properties:
+                type:
+                  $ref: '#/components/schemas/TransactionType'
+                amount:
+                  $ref: '#/components/schemas/MoneyString'
+                category_id:
+                  type: string
+                  format: uuid
+                  description: Must belong to the authenticated user and match the transaction type.
+                note:
+                  type: ['string', 'null']
+                transaction_date:
+                  $ref: '#/components/schemas/DateString'
+      responses:
+        '201':
+          description: Transaction created.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/TransactionDetail'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '409':
+          $ref: '#/components/responses/IdempotencyConflictError'
+        '422':
+          description: Validation error or insufficient balance.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /transactions/{transactionId}:
+    get:
+      operationId: getTransaction
+      tags: [Transactions]
+      summary: Get transaction detail
+      description: >
+        Returns transaction fields and category. Receipt merchant and items are
+        included only for AI_SCAN transactions. Returns 404 if the transaction
+        does not exist or does not belong to the authenticated user.
+      parameters:
+        - $ref: '#/components/parameters/TransactionId'
+      responses:
+        '200':
+          description: Transaction detail.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/TransactionDetail'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    patch:
+      operationId: updateTransaction
+      tags: [Transactions]
+      summary: Update a transaction (including receipt editing)
+      description: |
+        Updates allowed fields: `amount`, `category_id`, `note`,
+        `transaction_date`.
+
+        **Receipt transactions (D-06):** the request may also include a
+        `receipt` object with `merchant_name` and a replacement `items` array.
+        When `receipt.items` is present it is a full replacement of the current
+        item list (backend replaces child rows atomically). If the transaction
+        `amount` changes, `receipt.items` must be supplied in the same request
+        and their sum must equal the resulting transaction amount; otherwise
+        422 RECEIPT_TOTAL_MISMATCH is returned and existing data is unchanged.
+
+        **Balance guard (D-07):** acquires the per-user balance lock, computes
+        projected available balance for the update, and rejects/rolls back with
+        422 INSUFFICIENT_BALANCE if the result would be negative.
+
+        Update is atomic: parent transaction and receipt child rows are updated
+        in one database transaction.
+      parameters:
+        - $ref: '#/components/parameters/TransactionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                amount:
+                  $ref: '#/components/schemas/MoneyString'
+                category_id:
+                  type: string
+                  format: uuid
+                note:
+                  type: ['string', 'null']
+                transaction_date:
+                  $ref: '#/components/schemas/DateString'
+                receipt:
+                  $ref: '#/components/schemas/ReceiptUpdateInput'
+              example:
+                amount: '75000'
+                note: 'Ăn sáng'
+                receipt:
+                  merchant_name: 'Quán A'
+                  items:
+                    - item_name: 'Phở'
+                      amount: '45000'
+                      sort_order: 1
+                    - item_name: 'Cà phê'
+                      amount: '30000'
+                      sort_order: 2
+      responses:
+        '200':
+          description: Transaction updated.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/TransactionDetail'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '422':
+          description: Validation, receipt total mismatch, or insufficient balance.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    delete:
+      operationId: deleteTransaction
+      tags: [Transactions]
+      summary: Delete a transaction
+      description: |
+        Deletes the transaction after client-side confirmation.
+
+        **Implementation semantics (D-12a/D-12b — GROUP APPROVED):**
+        Deletion is implemented as a soft delete (`transactions.deleted_at`).
+        Receipt child rows (`receipt_details`, `receipt_items`) are retained
+        and are not cascade-deleted. Soft-deleted transactions are excluded
+        from all active lists and financial aggregates (available balance,
+        budget spent, statistics). The DELETE operation is idempotent: a
+        repeated call returns 204.
+
+        **Balance guard (D-07):** if deleting an INCOME transaction would make
+        the projected available balance negative, the operation is rejected
+        with 422 INSUFFICIENT_BALANCE and data is left unchanged.
+
+        Confirmed AI transactions are never deleted by deleting their source
+        conversation.
+      parameters:
+        - $ref: '#/components/parameters/TransactionId'
+      responses:
+        '204':
+          description: Transaction deleted (or already deleted — idempotent).
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '422':
+          $ref: '#/components/responses/InsufficientBalanceError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # ---------------------------------------------------------------------------
+  # § 6. Budgets
+  # ---------------------------------------------------------------------------
+
+  /budgets:
+    get:
+      operationId: listBudgets
+      tags: [Budgets]
+      summary: List budgets for a month
+      description: >
+        Returns each budget with derived spent_amount, remaining_amount and
+        usage_percent. Jar transfers are excluded from spent_amount.
+      parameters:
+        - $ref: '#/components/parameters/MonthParam'
+      responses:
+        '200':
+          description: Budget list.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/BudgetData'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    post:
+      operationId: createBudget
+      tags: [Budgets]
+      summary: Create a monthly budget
+      description: >
+        Creates a budget. `month_start` must be the first day of the month.
+        Category must be EXPENSE type and owned by the user. Unique per
+        user/category/month.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [category_id, month_start, limit_amount]
+              properties:
+                category_id:
+                  type: string
+                  format: uuid
+                month_start:
+                  $ref: '#/components/schemas/DateString'
+                  description: Must be the first day of the month (YYYY-MM-01).
+                limit_amount:
+                  $ref: '#/components/schemas/MoneyString'
+      responses:
+        '201':
+          description: Budget created.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/BudgetData'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '409':
+          description: Budget already exists for this user/category/month.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /budgets/{budgetId}:
+    patch:
+      operationId: updateBudget
+      tags: [Budgets]
+      summary: Update budget limit
+      parameters:
+        - $ref: '#/components/parameters/BudgetId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [limit_amount]
+              properties:
+                limit_amount:
+                  $ref: '#/components/schemas/MoneyString'
+      responses:
+        '200':
+          description: Budget updated.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/BudgetData'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    delete:
+      operationId: deleteBudget
+      tags: [Budgets]
+      summary: Delete a budget
+      parameters:
+        - $ref: '#/components/parameters/BudgetId'
+      responses:
+        '204':
+          description: Budget deleted.
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # ---------------------------------------------------------------------------
+  # § 7. Savings Jars — exactly 6 operations; no PATCH/DELETE (D-11)
+  # ---------------------------------------------------------------------------
+
+  /saving-jars:
+    get:
+      operationId: listSavingJars
+      tags: [SavingJars]
+      summary: List saving jars
+      description: >
+        Returns jars with derived current_balance and progress_percent.
+        Balance is derived from jar transaction history; not stored as a column.
+      responses:
+        '200':
+          description: Jar list.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SavingJarSummary'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    post:
+      operationId: createSavingJar
+      tags: [SavingJars]
+      summary: Create a saving jar
+      description: |
+        Creates a jar. If `initial_deposit` is positive, jar creation and the
+        initial deposit are atomic and subject to the available-balance guard
+        (D-07). Returns 422 INSUFFICIENT_BALANCE if the deposit would make
+        available balance negative.
+
+        **D-11:** No PATCH or DELETE endpoint for saving jars exists in v1.
+
+        **Idempotency:** `Idempotency-Key` is required. Same key + same payload
+        replays the original result. Same key + different payload returns
+        409 IDEMPOTENCY_KEY_REUSED.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKeyRequired'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, target_amount]
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  example: 'Du lịch'
+                target_amount:
+                  $ref: '#/components/schemas/MoneyString'
+                initial_deposit:
+                  type: string
+                  pattern: '^(0|[1-9]\d*)$'
+                  description: >
+                    Optional initial deposit amount. May be "0" or omitted.
+                    If positive, deposited atomically and subject to balance
+                    validation.
+                  example: '1000000'
+      responses:
+        '201':
+          description: Jar created.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/SavingJarSummary'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '409':
+          $ref: '#/components/responses/IdempotencyConflictError'
+        '422':
+          description: Validation error or insufficient balance for initial deposit.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /saving-jars/{jarId}:
+    get:
+      operationId: getSavingJar
+      tags: [SavingJars]
+      summary: Get jar details and recent transfers
+      parameters:
+        - $ref: '#/components/parameters/JarId'
+      responses:
+        '200':
+          description: Jar details with recent transfer history.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/SavingJarDetail'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /saving-jars/{jarId}/deposits:
+    post:
+      operationId: depositToJar
+      tags: [SavingJars]
+      summary: Deposit to a saving jar
+      description: |
+        Inserts a DEPOSIT jar transaction atomically under the shared per-user
+        balance lock. Requires sufficient available balance; rejects with
+        422 INSUFFICIENT_BALANCE if not.
+
+        **Idempotency:** `Idempotency-Key` is supported. Same key + same
+        payload replays the original result. Same key + different payload
+        returns 409 IDEMPOTENCY_KEY_REUSED.
+      parameters:
+        - $ref: '#/components/parameters/JarId'
+        - $ref: '#/components/parameters/IdempotencyKeySupported'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [amount]
+              properties:
+                amount:
+                  $ref: '#/components/schemas/MoneyString'
+                note:
+                  type: ['string', 'null']
+                  example: 'Tiết kiệm tháng 11'
+      responses:
+        '201':
+          description: Deposit recorded.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/JarTransactionRecord'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '409':
+          $ref: '#/components/responses/IdempotencyConflictError'
+        '422':
+          $ref: '#/components/responses/InsufficientBalanceError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /saving-jars/{jarId}/withdrawals:
+    post:
+      operationId: withdrawFromJar
+      tags: [SavingJars]
+      summary: Withdraw from a saving jar
+      description: |
+        Inserts a WITHDRAW jar transaction atomically under the shared per-user
+        balance lock. Requires sufficient jar balance; rejects with
+        422 INSUFFICIENT_JAR_BALANCE if the jar does not have enough funds.
+
+        **Idempotency:** `Idempotency-Key` is supported. Same key + same
+        payload replays the original result. Same key + different payload
+        returns 409 IDEMPOTENCY_KEY_REUSED.
+      parameters:
+        - $ref: '#/components/parameters/JarId'
+        - $ref: '#/components/parameters/IdempotencyKeySupported'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [amount]
+              properties:
+                amount:
+                  $ref: '#/components/schemas/MoneyString'
+                note:
+                  type: ['string', 'null']
+                  example: 'Rút tiền sử dụng'
+      responses:
+        '201':
+          description: Withdrawal recorded.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/JarTransactionRecord'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '409':
+          $ref: '#/components/responses/IdempotencyConflictError'
+        '422':
+          description: Validation error or insufficient jar balance.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /saving-jars/{jarId}/transactions:
+    get:
+      operationId: listJarTransactions
+      tags: [SavingJars]
+      summary: List jar transfer history
+      parameters:
+        - $ref: '#/components/parameters/JarId'
+        - name: type
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/JarTransactionType'
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PageSizeParam'
+      responses:
+        '200':
+          description: Paginated jar transfer history.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/JarTransactionRecord'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # ---------------------------------------------------------------------------
+  # § 8. Statistics
+  # ---------------------------------------------------------------------------
+
+  /statistics/overview:
+    get:
+      operationId: getStatisticsOverview
+      tags: [Statistics]
+      summary: Monthly income/expense overview
+      description: >
+        Returns total_income, total_expense and net_change for the month.
+        Jar transfers are excluded. net_change = total_income - total_expense.
+      parameters:
+        - $ref: '#/components/parameters/MonthParam'
+      responses:
+        '200':
+          description: Monthly overview.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/StatisticsOverview'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /statistics/categories:
+    get:
+      operationId: getStatisticsCategories
+      tags: [Statistics]
+      summary: Per-category amount and percentage breakdown
+      parameters:
+        - $ref: '#/components/parameters/MonthParam'
+        - name: type
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/TransactionType'
+      responses:
+        '200':
+          description: Category breakdown.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CategoryStatItem'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /statistics/daily-expenses:
+    get:
+      operationId: getDailyExpenses
+      tags: [Statistics]
+      summary: Daily expense series for a date range
+      description: >
+        Returns date/amount points for the requested range. Used by the mobile
+        app for the seven-day expense chart (D-10). Income chart is not in v1
+        scope.
+      parameters:
+        - name: from
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/DateString'
+          description: Start date inclusive (YYYY-MM-DD).
+        - name: to
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/DateString'
+          description: End date inclusive (YYYY-MM-DD).
+      responses:
+        '200':
+          description: Daily expense series.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/DailyExpensePoint'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # ---------------------------------------------------------------------------
+  # § 9. AI Chat and Conversations
+  # ---------------------------------------------------------------------------
+
+  /ai/conversations:
+    post:
+      operationId: createConversation
+      tags: [AIChat]
+      summary: Create an AI conversation
+      description: >
+        Creates a new conversation. `is_saved` defaults to false.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: ['string', 'null']
+                  example: 'Chi tiêu tháng 11'
+      responses:
+        '201':
+          description: Conversation created.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/AIConversation'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    get:
+      operationId: listSavedConversations
+      tags: [AIChat]
+      summary: List saved conversations
+      description: Returns only saved conversations (is_saved = true) for the user.
+      responses:
+        '200':
+          description: Saved conversation list.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AIConversation'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /ai/conversations/{conversationId}:
+    get:
+      operationId: getConversation
+      tags: [AIChat]
+      summary: Get conversation metadata
+      parameters:
+        - $ref: '#/components/parameters/ConversationId'
+      responses:
+        '200':
+          description: Conversation metadata.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/AIConversation'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    patch:
+      operationId: updateConversation
+      tags: [AIChat]
+      summary: Update conversation (save state)
+      description: >
+        Sets `is_saved` and records `saved_at`. Saving retains messages and
+        pending drafts for later restoration.
+      parameters:
+        - $ref: '#/components/parameters/ConversationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [is_saved]
+              properties:
+                is_saved:
+                  type: boolean
+      responses:
+        '200':
+          description: Conversation updated.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/AIConversation'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    delete:
+      operationId: deleteConversation
+      tags: [AIChat]
+      summary: Delete a conversation
+      description: >
+        Deletes conversation messages and unconfirmed drafts/batches atomically.
+        Confirmed financial transactions must remain intact; financial aggregates
+        must not change. FK actions are configured to prevent cascade-deletion
+        into confirmed transaction rows.
+      parameters:
+        - $ref: '#/components/parameters/ConversationId'
+      responses:
+        '204':
+          description: Conversation deleted.
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /ai/conversations/{conversationId}/messages:
+    post:
+      operationId: sendMessage
+      tags: [AIChat]
+      summary: Send a user message and receive AI drafts
+      description: |
+        Sends a user message to the conversation. The backend:
+        1. Validates ownership and applies request limits (OQ-04).
+        2. Assembles context including permitted financial/category data.
+        3. Calls the AI provider.
+        4. Validates and treats model output as untrusted data.
+        5. Saves user and assistant messages.
+        6. Creates a draft batch and individual drafts (never transactions).
+
+        AI never creates or confirms transactions automatically.
+
+        **Idempotency:** `Idempotency-Key` is required. The key is stored with
+        the user message and resulting draft batch so a network retry does not
+        create duplicate messages, AI calls or draft batches.
+      parameters:
+        - $ref: '#/components/parameters/ConversationId'
+        - $ref: '#/components/parameters/IdempotencyKeyRequired'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [content]
+              properties:
+                content:
+                  type: string
+                  minLength: 1
+                  example: 'Hôm nay tôi ăn phở 45 nghìn, uống cà phê 30 nghìn'
+      responses:
+        '200':
+          description: >
+            Message processed. Returns the user message, assistant message
+            and draft batch with draft IDs and statuses.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    required: [user_message, assistant_message, draft_batch]
+                    properties:
+                      user_message:
+                        $ref: '#/components/schemas/AIMessage'
+                      assistant_message:
+                        $ref: '#/components/schemas/AIMessage'
+                      draft_batch:
+                        $ref: '#/components/schemas/AIDraftBatch'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '409':
+          $ref: '#/components/responses/IdempotencyConflictError'
+        '429':
+          $ref: '#/components/responses/RateLimitedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '502':
+          $ref: '#/components/responses/AIProviderError'
+
+    get:
+      operationId: listMessages
+      tags: [AIChat]
+      summary: List conversation messages
+      description: Returns messages ordered by created_at ascending.
+      parameters:
+        - $ref: '#/components/parameters/ConversationId'
+      responses:
+        '200':
+          description: Message list.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AIMessage'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /ai/conversations/{conversationId}/draft-batches:
+    get:
+      operationId: listConversationDraftBatches
+      tags: [AIChat]
+      summary: List draft batches for a conversation
+      description: >
+        Returns batches and drafts required to restore a saved conversation,
+        including pending draft state.
+      parameters:
+        - $ref: '#/components/parameters/ConversationId'
+      responses:
+        '200':
+          description: Draft batch list.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AIDraftBatch'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /ai/drafts/{draftId}:
+    get:
+      operationId: getDraft
+      tags: [AIChat]
+      summary: Get draft and validation state
+      description: Returns a draft only if owned by the authenticated user.
+      parameters:
+        - $ref: '#/components/parameters/DraftId'
+      responses:
+        '200':
+          description: Draft detail.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/AIDraft'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    patch:
+      operationId: updateDraft
+      tags: [AIChat]
+      summary: Edit draft fields
+      description: >
+        Updates allowed draft fields: `transaction_type`, `amount`,
+        `category_id`, `transaction_date`, `note`, `merchant_name`.
+        Status is revalidated after every edit and updated to NEEDS_INPUT or
+        READY. Draft edits do not alter financial aggregates.
+      parameters:
+        - $ref: '#/components/parameters/DraftId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                transaction_type:
+                  $ref: '#/components/schemas/TransactionType'
+                amount:
+                  $ref: '#/components/schemas/MoneyString'
+                category_id:
+                  type: ['string', 'null']
+                  format: uuid
+                transaction_date:
+                  $ref: '#/components/schemas/DateString'
+                note:
+                  type: ['string', 'null']
+                merchant_name:
+                  type: ['string', 'null']
+      responses:
+        '200':
+          description: Draft updated with revalidated status.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/AIDraft'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /ai/drafts/{draftId}/cancel:
+    post:
+      operationId: cancelDraft
+      tags: [AIChat]
+      summary: Cancel a pending draft
+      description: >
+        Sets a pending draft to CANCELLED status. Cannot cancel a confirmed
+        draft through this endpoint.
+      parameters:
+        - $ref: '#/components/parameters/DraftId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Draft cancelled.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/AIDraft'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '422':
+          description: Draft is not in a cancellable state.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /ai/drafts/{draftId}/confirm:
+    post:
+      operationId: confirmDraft
+      tags: [AIChat]
+      summary: Confirm one AI draft and create a transaction
+      description: |
+        Confirms a single READY draft:
+        1. Re-checks ownership and status.
+        2. Acquires the shared per-user balance lock.
+        3. Computes projected available balance.
+        4. Creates the transaction (and receipt rows for AI_SCAN drafts)
+           only if balance remains non-negative.
+        5. Updates draft status to CONFIRMED with transaction_id atomically.
+
+        Returns 422 INSUFFICIENT_BALANCE and retains the pending draft without
+        any financial record if funds are insufficient.
+
+        For AI_SCAN receipt drafts: receipt_details and receipt_items are
+        created in the same DB transaction; item sum must equal transaction
+        amount.
+
+        **Idempotency:** `Idempotency-Key` is required. Same key returns the
+        original confirmation result without duplicating the transaction.
+      parameters:
+        - $ref: '#/components/parameters/DraftId'
+        - $ref: '#/components/parameters/IdempotencyKeyRequired'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Draft confirmed and transaction created.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    required: [draft, transaction]
+                    properties:
+                      draft:
+                        $ref: '#/components/schemas/AIDraft'
+                      transaction:
+                        $ref: '#/components/schemas/TransactionDetail'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '409':
+          $ref: '#/components/responses/IdempotencyConflictError'
+        '422':
+          description: Draft not ready, receipt mismatch, or insufficient balance.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /ai/draft-batches/{batchId}/confirm-all:
+    post:
+      operationId: confirmAllDrafts
+      tags: [AIChat]
+      summary: Confirm all pending drafts in a batch (atomic)
+      description: |
+        Atomically confirms every pending READY draft in the batch:
+        1. Acquires the shared per-user balance lock and locks pending drafts.
+        2. Validates ALL pending drafts before writing.
+        3. If any pending draft is invalid or incomplete, creates NO
+           transactions and returns 422 BATCH_INVALID with per-draft reasons.
+        4. Computes combined projected available balance for all pending drafts.
+        5. If the combined balance would be negative, creates NO transactions
+           and returns 422 INSUFFICIENT_BALANCE.
+        6. If all drafts are valid and balance is sufficient, creates all
+           transactions and updates draft statuses in one DB transaction.
+
+        Previously confirmed or cancelled drafts are not recreated.
+        Expired drafts are not confirmable.
+
+        Users may still confirm valid individual drafts subject to the balance
+        invariant after a failed confirm-all.
+
+        **Idempotency:** `Idempotency-Key` is required.
+      parameters:
+        - $ref: '#/components/parameters/BatchId'
+        - $ref: '#/components/parameters/IdempotencyKeyRequired'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: All pending drafts confirmed.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    required: [drafts, transactions]
+                    properties:
+                      drafts:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/AIDraft'
+                      transactions:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/TransactionDetail'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '409':
+          $ref: '#/components/responses/IdempotencyConflictError'
+        '422':
+          description: >
+            One or more pending drafts are invalid (BATCH_INVALID) or combined
+            balance would be negative (INSUFFICIENT_BALANCE). No transactions
+            created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # ---------------------------------------------------------------------------
+  # § 10. AI Scan / Receipt
+  # ---------------------------------------------------------------------------
+
+  /ai/receipts/scan:
+    post:
+      operationId: scanReceipt
+      tags: [AIScan]
+      summary: Scan a receipt image and create a draft
+      description: |
+        Accepts a receipt image, calls Claude Vision via the AI Provider,
+        normalizes results, creates one AI_SCAN draft batch and one draft with
+        child ai_draft_items.
+
+        **Privacy:** image bytes are NEVER stored. Backend discards temporary
+        image data after success, failure or cancellation. No image URL or
+        permanent file key is written to the database or logs.
+
+        **Idempotency:** `Idempotency-Key` is required. Same key + same image
+        fingerprint (SHA-256) returns the original scan result. Same key +
+        different image returns 409 IDEMPOTENCY_KEY_REUSED. The fingerprint
+        is computed in-memory and stored as 64 hex characters; image bytes
+        are discarded after processing.
+
+        AI does not choose a category; the user must select one before
+        confirmation. Unreadable fields (merchant_name, item amounts) are null.
+        Item sum must equal invoice total before confirmation is possible.
+
+        Content type must be `multipart/form-data`; accepted image formats and
+        size bound are configurable (OQ-08).
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKeyRequired'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [image]
+              properties:
+                image:
+                  type: string
+                  format: binary
+                  description: >
+                    Receipt image file. Accepted formats and size bound are
+                    configurable server-side (OQ-08). Backend verifies actual
+                    file signature and decodeability.
+      responses:
+        '200':
+          description: Receipt scanned and draft created.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    required: [draft_batch, draft]
+                    properties:
+                      draft_batch:
+                        type: object
+                        required: [id, source_type]
+                        properties:
+                          id:
+                            $ref: '#/components/schemas/UUIDString'
+                          source_type:
+                            type: string
+                            enum: [AI_SCAN]
+                      draft:
+                        $ref: '#/components/schemas/AIDraft'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '409':
+          $ref: '#/components/responses/IdempotencyConflictError'
+        '422':
+          description: Invalid image (format, size, undecodeable) or validation error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          $ref: '#/components/responses/RateLimitedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '502':
+          $ref: '#/components/responses/AIProviderError'
+
+  /ai/drafts/{draftId}/items:
+    post:
+      operationId: addDraftItem
+      tags: [AIScan]
+      summary: Add an item to a receipt draft
+      description: >
+        Adds a draft item to a pending AI_SCAN draft. Backend recomputes
+        validation after the change.
+      parameters:
+        - $ref: '#/components/parameters/DraftId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [item_name, amount]
+              properties:
+                item_name:
+                  type: string
+                  minLength: 1
+                  example: 'Bánh mì'
+                amount:
+                  $ref: '#/components/schemas/MoneyString'
+      responses:
+        '201':
+          description: Draft item added.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/AIDraftItem'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /ai/draft-items/{itemId}:
+    patch:
+      operationId: updateDraftItem
+      tags: [AIScan]
+      summary: Edit a receipt draft item
+      description: >
+        Updates `item_name` and/or `amount`. Item must belong to a draft owned
+        by the authenticated user. Backend recomputes validation after the
+        change.
+      parameters:
+        - $ref: '#/components/parameters/ItemId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                item_name:
+                  type: string
+                  minLength: 1
+                amount:
+                  $ref: '#/components/schemas/MoneyString'
+      responses:
+        '200':
+          description: Item updated.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/AIDraftItem'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    delete:
+      operationId: deleteDraftItem
+      tags: [AIScan]
+      summary: Delete a receipt draft item
+      description: >
+        Deletes an item from a pending receipt draft. Backend recomputes
+        validation after deletion.
+      parameters:
+        - $ref: '#/components/parameters/ItemId'
+      responses:
+        '204':
+          description: Item deleted.
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+# ---------------------------------------------------------------------------
+# Tags (documentation grouping)
+# ---------------------------------------------------------------------------
+tags:
+  - name: Auth
+    description: Authentication, token management and session control.
+  - name: Users
+    description: Authenticated user profile.
+  - name: Dashboard
+    description: Aggregated financial summary for the home screen.
+  - name: Categories
+    description: Income and expense categories.
+  - name: Transactions
+    description: Manual and AI-confirmed financial transactions.
+  - name: Budgets
+    description: Monthly spending budgets per category.
+  - name: SavingJars
+    description: >
+      Savings jars with deposit and withdrawal transfers.
+      No PATCH or DELETE endpoint (D-11).
+  - name: Statistics
+    description: >
+      Financial statistics and charts. Seven-day expense chart only (D-10).
+  - name: AIChat
+    description: AI conversation, message, draft and batch endpoints.
+  - name: AIScan
+    description: Receipt image scanning and draft item management.

@@ -29,10 +29,10 @@ Evidence sources used below:
 | ESLint | 8.57.1 | Backend lint passed [U-2026-11-21] |
 | Prettier | 3.10.1 | Backend format check passed [U-2026-11-21] |
 | Express (runtime) | 4.22.1 | Resolved via `@nestjs/platform-express` 10.4.22 [R: lockfile] |
-| @types/express | 5.0.6 | **Mismatch with Express 4 runtime** – to be aligned to 4.x (approved Q3, P0-TD-01 step 3) |
+| @types/express | 4.17.25 | Aligned with Express 4.22.1 runtime; API typecheck and build passed [U-2026-11-22] |
 | Prisma / @prisma/client | 6.19.3 | Schema datasource-only validated; Supabase Session Pooler smoke passed [U-2026-11-21] |
 | PostgreSQL (dev) | Supabase PostgreSQL 17.12 | Connection verified via Session Pooler, port 5432; `db:smoke` passed [U-2026-11-21] |
-| PostgreSQL (local/test) | Native install on drive D: (Q2) | Not installed; version and directories pending coordinator confirmation |
+| PostgreSQL (local/test) | No local installation | Not installed by coordinator decision; Supabase remains the online development database. Test database isolation strategy remains pending for P0-TD-02. |
 
 `apps/api/.env.example` contains placeholder `DATABASE_URL` for Supabase Session Pooler and `CHECKPOINT_DISABLE=1` [U-2026-11-21].
 
@@ -73,15 +73,15 @@ Note: `packages/contracts/validate.sh` defaults to `docs/05_API_Documentation_v1
 ## 5. Pending Compatibility Verification
 
 - Full Prisma ORM compatibility with application models and migrations (P1-BE-01); current verification covers datasource-only schema and connectivity.
-- Local/test PostgreSQL on drive D: (version, directories – awaiting confirmation).
+- Local/test PostgreSQL: no local installation by coordinator decision; define an appropriate isolated test database strategy for P0-TD-02.
 - Prisma 6.19.3 against PostgreSQL and NestJS 10 / TypeScript 5.9.3.
-- Express type compatibility with NestJS 10 (`@types/express` 5.0.6 vs Express 4.22.1).
+- Express type compatibility: `@types/express` 4.17.25 aligned with Express 4.22.1; API typecheck and build passed [U-2026-11-22].
 - OpenAPI lint.
 - Android device smoke test (image picker, multipart upload, secure store) – blocked: no device.
-- Lint and format for `apps/mobile` and `packages/contracts`; commit hooks.
+- Lint and format for `apps/mobile` and `packages/contracts` remain pending. Husky 9.1.7 pre-commit hook runs workspace TypeScript checks successfully [U-2026-11-22].
 - CI version guard.
 - Test harness (P0-TD-02, P0-TD-03).
-- `.npmrc` contains a Windows-only absolute `virtual-store-dir`; must move to user-level pnpm config before CI on Linux runners.
+- pnpm user configuration is stored at `D:\pnpm-config\pnpm-user.npmrc`; virtual store is on drive D:. CI/Linux runner configuration still needs verification.
 
 ## 6. Important Notes
 
