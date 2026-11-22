@@ -1,0 +1,44 @@
+id,type,api,ui,tasks,tests,status
+FR-01,FR,POST /auth/register; GET /users/me; PATCH /users/me,Đăng ký/Đăng nhập; ProfileScreen,P1-BE-04; P1-BE-05; P1-FE-06,IT-AUTH; UT-VALID; E2E-01,planned
+FR-02,FR,POST /auth/login; POST /auth/refresh; POST /auth/logout,Đăng ký/Đăng nhập,P1-BE-04; P1-FE-04; P1-FE-06,IT-AUTH; UT-FE-SESSION; E2E-01,planned
+FR-03,FR,GET /dashboard,DashboardScreen,P2-BE-02; P2-BE-07; P2-FE-09,UT-BAL; IT-DASH; E2E-02,planned
+FR-04,FR,POST /transactions,AddTransactionScreen,P2-BE-03; P2-FE-04,IT-TX; IT-BAL-GUARD; UT-MONEY; E2E-02,planned
+FR-05,FR,GET /categories; POST /categories,CategoriesScreen,P1-BE-06; P2-BE-01; P2-FE-03,IT-CAT; UT-CAT-NORM; E2E-11,planned
+FR-06,FR,GET /budgets; POST /budgets; PATCH /budgets/{budgetId}; DELETE /budgets/{budgetId},BudgetScreen,P2-BE-02; P2-BE-04; P2-FE-06,UT-BUDGET; IT-BUD; E2E-03,planned
+FR-07,FR,GET /transactions; GET /transactions/{transactionId}; PATCH /transactions/{transactionId}; DELETE /transactions/{transactionId},HistoryScreen; TransactionDetail; ReceiptItemsEditor,P2-BE-03; P2-FE-05; P3-BE-08; P3-FE-08,IT-TX-CONSISTENCY; IT-BAL-GUARD; IT-TX-RECEIPT-EDIT; IT-TX-DEL-RECEIPT; E2E-04; E2E-12,planned
+FR-08,FR,GET /statistics/overview; GET /statistics/categories; GET /statistics/daily-expenses,StatsScreen,P2-BE-06; P2-FE-08,UT-STAT; IT-STAT,planned
+FR-09,FR,GET /saving-jars; POST /saving-jars; GET /saving-jars/{jarId}; POST /saving-jars/{jarId}/deposits; POST /saving-jars/{jarId}/withdrawals; GET /saving-jars/{jarId}/transactions,JarsScreen; JarDetailSheet; JarCreateSheet,P2-BE-05; P2-FE-07,IT-JAR; IT-BAL-GUARD; IT-CONC-BAL; E2E-05,planned
+FR-10,FR,POST /ai/conversations; POST /ai/conversations/{conversationId}/messages; GET /ai/conversations; GET /ai/conversations/{conversationId}; GET /ai/conversations/{conversationId}/messages; GET /ai/conversations/{conversationId}/draft-batches; PATCH /ai/conversations/{conversationId}; DELETE /ai/conversations/{conversationId}; GET /ai/drafts/{draftId}; PATCH /ai/drafts/{draftId}; POST /ai/drafts/{draftId}/cancel; POST /ai/drafts/{draftId}/confirm; POST /ai/draft-batches/{batchId}/confirm-all,AiHub; Chat; DraftCard; ConversationList,P3-BE-01; P3-BE-02; P3-BE-03; P3-BE-04; P3-BE-05; P3-BE-06; P3-FE-03; P3-FE-04; P3-FE-05,IT-CHAT; IT-DRAFT; IT-DRAFT-BATCH; IT-BAL-GUARD; IT-CONV; IT-IDEM-AI; E2E-06; E2E-07; E2E-08,planned
+FR-11,FR,POST /ai/receipts/scan; POST /ai/drafts/{draftId}/items; PATCH /ai/draft-items/{itemId}; DELETE /ai/draft-items/{itemId},Scan; ReceiptDraftEditor,P3-BE-07; P3-BE-08; P3-BE-09; P3-FE-06; P3-FE-07,IT-SCAN; IT-SCAN-IDEM; IT-SCAN-ABORT; IT-SCAN-REPLAY; IT-SCAN-FAIL; IT-PRIV; UT-RECON; E2E-09; E2E-10,planned
+FR-12,FR,POST /ai/drafts/{draftId}/confirm; POST /ai/receipts/scan; PATCH /ai/drafts/{draftId},ReceiptDraftEditor; DraftCard,P3-BE-05; P3-BE-08; P3-FE-07; P3-FE-08,IT-SCAN-CONFIRM; IT-BAL-GUARD; E2E-09,planned
+AC-01,AC,POST /auth/register,Đăng ký/Đăng nhập,P1-BE-04; P1-FE-05; P1-FE-06,IT-AUTH; UT-VALID; E2E-01,planned
+AC-02,AC,POST /auth/register,Đăng ký/Đăng nhập,P1-BE-04; P1-FE-05; P1-FE-06,IT-AUTH; UT-VALID; E2E-01,planned
+AC-03,AC,POST /auth/login; POST /auth/logout; POST /auth/refresh,Đăng ký/Đăng nhập,P1-BE-04; P1-FE-04; P1-FE-06,IT-AUTH; UT-FE-SESSION; E2E-01,planned
+AC-04,AC,GET /dashboard,DashboardScreen,P2-BE-02; P2-BE-07; P2-FE-09,UT-BAL; IT-DASH; E2E-02,planned
+AC-05,AC,POST /transactions,AddTransactionScreen,P2-BE-03; P2-FE-04,IT-TX; IT-BAL-GUARD; E2E-02,planned
+AC-06,AC,POST /transactions,AddTransactionScreen,P2-BE-03; P2-FE-04,IT-TX; IT-BAL-GUARD; UT-MONEY; E2E-02,planned
+AC-07,AC,GET /categories; POST /categories,CategoriesScreen,P1-BE-06; P2-BE-01; P2-FE-03,IT-CAT; E2E-11,planned
+AC-08,AC,GET /budgets; POST /budgets; PATCH /budgets/{budgetId}; DELETE /budgets/{budgetId},BudgetScreen,P2-BE-04; P2-FE-06,IT-BUD; E2E-03,planned
+AC-09,AC,GET /budgets; GET /dashboard,BudgetScreen; DashboardScreen,P2-BE-02; P2-BE-04; P2-BE-07; P2-FE-06; P2-FE-09,UT-BUDGET; IT-BUD; E2E-03,planned
+AC-10,AC,GET /transactions; GET /transactions/{transactionId}; PATCH /transactions/{transactionId}; DELETE /transactions/{transactionId},HistoryScreen; TransactionDetail,P2-BE-03; P2-FE-05,IT-TX; E2E-04,planned
+AC-11,AC,PATCH /transactions/{transactionId}; DELETE /transactions/{transactionId},HistoryScreen; ReceiptItemsEditor,P2-BE-03; P2-FE-05; P3-BE-08; P3-FE-08,IT-TX-CONSISTENCY; IT-BAL-GUARD; IT-TX-RECEIPT-EDIT; IT-TX-DEL-RECEIPT; E2E-04; E2E-12,planned
+AC-12,AC,GET /statistics/overview; GET /statistics/categories; GET /statistics/daily-expenses,StatsScreen,P2-BE-06; P2-FE-08,UT-STAT; IT-STAT; E2E-04,planned
+AC-13,AC,POST /saving-jars; POST /saving-jars/{jarId}/deposits; POST /saving-jars/{jarId}/withdrawals,JarsScreen; JarDetailSheet,P2-BE-05; P2-FE-07,IT-JAR; IT-BAL-GUARD; E2E-05,planned
+AC-14,AC,POST /saving-jars; POST /saving-jars/{jarId}/deposits; POST /saving-jars/{jarId}/withdrawals,JarCreateSheet; JarDetailSheet,P2-BE-05; P2-FE-07,IT-JAR; IT-BAL-GUARD; IT-CONC-BAL; E2E-05,planned
+AC-15,AC,POST /ai/conversations/{conversationId}/messages,Chat; DraftCard,P3-BE-04; P3-FE-03; P3-FE-04,IT-CHAT; IT-IDEM-AI; E2E-06,planned
+AC-16,AC,POST /ai/conversations/{conversationId}/messages,Chat,P3-BE-04,IT-CHAT; E2E-07,planned
+AC-17,AC,POST /ai/drafts/{draftId}/confirm,DraftCard,P3-BE-05; P3-FE-04,IT-DRAFT; IT-BAL-GUARD; IT-CONC; IT-CONC-BAL; E2E-06,planned
+AC-18,AC,POST /ai/draft-batches/{batchId}/confirm-all,DraftCard,P3-BE-06; P3-FE-04,IT-DRAFT-BATCH; IT-BAL-GUARD; IT-CONC; IT-CONC-BAL; E2E-07,planned
+AC-19,AC,PATCH /ai/conversations/{conversationId}; GET /ai/conversations; GET /ai/conversations/{conversationId}/draft-batches,ConversationList,P3-BE-03; P3-FE-05,IT-CONV; E2E-08,planned
+AC-20,AC,DELETE /ai/conversations/{conversationId},ConversationList,P3-BE-03; P3-FE-05,IT-CONV; E2E-08,planned
+AC-21,AC,POST /ai/receipts/scan,Scan,P3-BE-07,IT-SCAN; IT-SCAN-IDEM; E2E-09,planned
+AC-22,AC,POST /ai/drafts/{draftId}/items; PATCH /ai/draft-items/{itemId}; DELETE /ai/draft-items/{itemId},ReceiptDraftEditor,P3-BE-08; P3-FE-07,IT-SCAN; E2E-09,planned
+AC-23,AC,POST /ai/drafts/{draftId}/confirm; PATCH /transactions/{transactionId},ReceiptDraftEditor; ReceiptItemsEditor,P3-BE-02; P3-BE-08; P3-FE-01; P3-FE-07,UT-RECON; IT-SCAN-CONFIRM; IT-TX-RECEIPT-EDIT; E2E-09,planned
+AC-24,AC,POST /ai/receipts/scan,Scan,P3-BE-07; P3-BE-09; P3-FE-06,IT-PRIV; IT-SCAN-ABORT; IT-SCAN-REPLAY; IT-SCAN-FAIL; E2E-10,planned
+AC-25,AC,POST /ai/receipts/scan; PATCH /ai/drafts/{draftId},ReceiptDraftEditor,P3-BE-07; P3-FE-07,IT-SCAN; E2E-09,planned
+AC-26,AC,POST /ai/drafts/{draftId}/confirm,ReceiptDraftEditor,P3-BE-08; P3-FE-08,IT-SCAN-CONFIRM; IT-BAL-GUARD; E2E-09,planned
+NFR-SEC,NFR,,,P1-BE-04; P1-FE-04; P3-TD-02; P4-BE-01; P4-BE-02; P4-FE-02,IT-AUTH; IT-AUTHZ; IT-SEC; IT-AI-ADV; UT-FE-SESSION; E2E-01,planned
+NFR-PERF,NFR,,,P3-BE-01; P2-BE-08; P4-BE-04; P4-FE-01,IT-PROVIDER-MAP; IT-SCAN-FAIL; IT-FE-CONTAINER,planned
+NFR-INT,NFR,,,P1-BE-01; P1-BE-03; P2-BE-02; P2-BE-03; P2-BE-05; P3-BE-05; P3-BE-06; P3-BE-08; P4-BE-03,IT-SCHEMA; UT-BAL; UT-IDEM; UT-HASH; IT-IDEM; IT-IDEM-AI; IT-BAL-GUARD; IT-CONC-BAL; IT-CONC; IT-TX-CONSISTENCY; IT-SCAN-CONFIRM; E2E-12,planned
+NFR-PRI,NFR,,,P3-BE-07; P3-BE-09; P3-FE-06; P4-FE-02,IT-PRIV; IT-SCAN-ABORT; IT-SCAN-REPLAY; IT-SCAN-FAIL; E2E-10,planned
+NFR-USA,NFR,,,P1-FE-01; P1-FE-02; P3-BE-01; P4-FE-01; P4-TD-01,IT-CONTRACT; IT-PROVIDER-MAP; IT-FE-CONTAINER; IT-ENVELOPE; PLAT-01…06,planned
