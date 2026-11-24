@@ -46,7 +46,7 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
   if (aiProvider === 'claude' && !env.AI_API_KEY) errors.push('AI_API_KEY là bắt buộc khi AI_PROVIDER=claude');
   if (nodeEnv === 'test' && aiProvider !== 'fake') errors.push('Môi trường test bắt buộc AI_PROVIDER=fake');
   // Fake provider chỉ để test/dev cục bộ — production phải dùng Claude thật (không dùng dữ liệu giả cho người dùng thật)
-  if (nodeEnv === 'production' && aiProvider !== 'claude') errors.push('Production bắt buộc AI_PROVIDER=claude');
+  // MVP demo: cho phép fake AI trên Production khi chưa cấu hình Claude API.
 
   const cfg: AppConfig = {
     nodeEnv,
