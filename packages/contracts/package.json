@@ -1,0 +1,20 @@
+{
+  "name": "@ase/contracts",
+  "version": "1.2.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "check": "node scripts/check-openapi.mjs && redocly lint openapi.yaml && node scripts/check-fixtures.mjs",
+    "gen": "openapi-typescript openapi.yaml -o src/generated/schema.d.ts",
+    "lint": "node scripts/check-openapi.mjs",
+    "typecheck": "pnpm gen && tsc --noEmit -p .",
+    "test": "node scripts/check-fixtures.mjs"
+  },
+  "devDependencies": {
+    "@redocly/cli": "^2.0.0",
+    "openapi-typescript": "^7.9.0",
+    "typescript": "~5.9.0"
+  }
+}

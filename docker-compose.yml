@@ -1,0 +1,14 @@
+# PostgreSQL cho local + test (Supabase chỉ dùng cho môi trường deploy)
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ase
+      POSTGRES_PASSWORD: ase_local_only
+      POSTGRES_DB: ase_dev
+    ports: ["5432:5432"]
+    volumes:
+      - ./docker/init-test-db.sql:/docker-entrypoint-initdb.d/01-test-db.sql:ro
+      - ase_pg:/var/lib/postgresql/data
+volumes:
+  ase_pg: {}

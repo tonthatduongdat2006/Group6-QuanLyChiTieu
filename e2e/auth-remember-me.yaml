@@ -1,0 +1,32 @@
+# E2E-01b — remember-me: BẬT → mở lại app vẫn đăng nhập; TẮT → phải đăng nhập lại (D-13a)
+# Cần sẵn tài khoản: chạy auth-register-login-logout.yaml trước hoặc seed e2e@test.vn / Example123
+appId: vn.edu.aismartexpense
+---
+- launchApp:
+    clearState: true
+- tapOn: { id: login-email }
+- inputText: e2e@test.vn
+- tapOn: { id: login-password }
+- inputText: Example123
+- hideKeyboard
+- tapOn: { id: login-remember }
+- tapOn: { id: login-submit }
+- assertVisible: Trang chủ
+- stopApp
+- launchApp
+- assertVisible: Trang chủ          # đã khôi phục phiên
+- tapOn: Cá nhân
+- tapOn: { id: logout }
+- tapOn: { id: logout-confirm }
+# Đăng nhập lại KHÔNG ghi nhớ
+- tapOn: { id: login-email }
+- eraseText
+- inputText: e2e@test.vn
+- tapOn: { id: login-password }
+- inputText: Example123
+- hideKeyboard
+- tapOn: { id: login-submit }
+- assertVisible: Trang chủ
+- stopApp
+- launchApp
+- assertVisible: Đăng nhập          # phải đăng nhập lại

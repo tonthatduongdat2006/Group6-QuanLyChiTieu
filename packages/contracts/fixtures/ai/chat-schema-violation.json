@@ -1,0 +1,34 @@
+{
+  "name": "chat-schema-violation",
+  "kind": "chat",
+  "description": "JSON đúng cú pháp nhưng sai schema (số âm, enum lạ) → AI_PROVIDER_ERROR",
+  "input": {
+    "content": "hoàn tiền 20k",
+    "today": "2026-11-24",
+    "categories": [
+      "Ăn uống"
+    ],
+    "pending_drafts": []
+  },
+  "provider": {
+    "type": "ok",
+    "output": {
+      "intent": "CREATE",
+      "reply": "ok",
+      "transactions": [
+        {
+          "type": "REFUND",
+          "amount": "-20000",
+          "category_name": "Ăn uống",
+          "transaction_date": "2026-13-40",
+          "note": null,
+          "target_draft_ref": null
+        }
+      ]
+    }
+  },
+  "expect": {
+    "error": "AI_PROVIDER_ERROR",
+    "transactions_created": 0
+  }
+}

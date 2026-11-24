@@ -1,0 +1,39 @@
+{
+  "name": "receipt-unreadable-fields",
+  "kind": "receipt",
+  "description": "Một số ô không đọc được → null + đánh dấu (AC-22)",
+  "input": {
+    "image": "generated:receipt-blurry"
+  },
+  "provider": {
+    "type": "ok",
+    "output": {
+      "merchant_name": null,
+      "transaction_date": null,
+      "total": "70000",
+      "items": [
+        {
+          "item_name": "Bánh mì",
+          "amount": "25000"
+        },
+        {
+          "item_name": null,
+          "amount": "45000"
+        },
+        {
+          "item_name": "Trà",
+          "amount": null
+        }
+      ]
+    }
+  },
+  "expect": {
+    "status": "NEEDS_INPUT",
+    "missing": [
+      "transaction_date",
+      "category_id",
+      "items[1].item_name",
+      "items[2].amount"
+    ]
+  }
+}

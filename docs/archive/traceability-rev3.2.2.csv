@@ -1,0 +1,44 @@
+id,kind,description,tasks,api_or_ui,tests,status
+FR-01,FR,Đăng ký,P1-BE-04;P1-BE-05;P1-FE-06,POST /auth/register,IT-AUTH;UT-VALID;E2E-01,P1 in-progress
+FR-02,FR,Đăng nhập/đăng xuất/remember-me,P1-BE-04;P1-FE-04;P1-FE-06,POST /auth/login;/auth/refresh;/auth/logout,IT-AUTH;UT-FE-SESSION;E2E-01,P1 in-progress
+FR-03,FR,Dashboard,P2-BE-02;P2-BE-07;P2-FE-09,GET /dashboard,UT-BAL;IT-DASH;E2E-02,planned
+FR-04,FR,Giao dịch thủ công,P2-BE-03;P2-FE-04,POST /transactions,IT-TX;IT-BAL-GUARD;UT-MONEY;E2E-02,planned
+FR-05,FR,Danh mục,P1-BE-06;P2-BE-01;P2-FE-03,GET/POST /categories,IT-CAT;UT-CAT-NORM;E2E-11,planned
+FR-06,FR,Ngân sách,P2-BE-02;P2-BE-04;P2-FE-06,/budgets,UT-BUDGET;IT-BUD;E2E-03,planned
+FR-07,FR,Lịch sử/sửa/xóa,P2-BE-03;P2-FE-05;P3-BE-08;P3-FE-08,/transactions/{transactionId},IT-TX-CONSISTENCY;IT-BAL-GUARD;IT-TX-RECEIPT-EDIT;IT-TX-DEL-RECEIPT;E2E-04;E2E-12,planned
+FR-08,FR,Thống kê,P2-BE-06;P2-FE-08,/statistics/*,UT-STAT;IT-STAT,planned
+FR-09,FR,Hũ tiết kiệm,P2-BE-05;P2-FE-07,/saving-jars*,IT-JAR;IT-BAL-GUARD;IT-CONC-BAL;E2E-05,planned
+FR-10,FR,AI Chat,P3-BE-01..06;P3-FE-03..05,/ai/conversations*;/ai/drafts*;/ai/draft-batches*,IT-CHAT;IT-DRAFT;IT-DRAFT-BATCH;IT-CONV;IT-IDEM-AI;E2E-06..08,planned
+FR-11,FR,AI Scan,P3-BE-07..09;P3-FE-06..07,/ai/receipts/scan;/ai/draft-items*,IT-SCAN;IT-PRIV;UT-RECON;E2E-09;E2E-10,planned
+FR-12,FR,Xác nhận hóa đơn,P3-BE-05;P3-BE-08;P3-FE-07..08,POST /ai/drafts/{draftId}/confirm,IT-SCAN-CONFIRM;IT-BAL-GUARD;E2E-09,planned
+AC-01,AC,Đăng ký hợp lệ,,,IT-AUTH;E2E-01,P1 in-progress
+AC-02,AC,Từ chối đăng ký sai,,,IT-AUTH;UT-VALID;UT-FE-VALID;E2E-01,P1 in-progress
+AC-03,AC,Login/logout/lỗi credential,,,IT-AUTH;UT-FE-SESSION;E2E-01,P1 in-progress
+AC-04,AC,Dashboard đúng,,,UT-BAL;IT-DASH,planned
+AC-05,AC,"Tạo thu/chi hợp lệ, số dư ≥0",,,IT-TX;IT-BAL-GUARD,planned
+AC-06,AC,Từ chối dữ liệu sai/thiếu số dư,,,IT-TX;UT-MONEY;IT-BAL-GUARD,planned
+AC-07,AC,Danh mục mặc định + tạo mới,,,IT-CAT-PROV;IT-CAT;UT-CAT-NORM,P1 partial (provisioner)
+AC-08,AC,CRUD ngân sách,,,IT-BUD,planned
+AC-09,AC,Cảnh báo 80%/vượt; loại hũ,,,UT-BUDGET;IT-BUD,planned
+AC-10,AC,Liệt kê/lọc/xem/sửa/xóa,,,IT-TX;E2E-04,planned
+AC-11,AC,Sửa/xóa cập nhật số liệu; chặn số dư âm,,,IT-TX-CONSISTENCY;IT-BAL-GUARD;IT-TX-RECEIPT-EDIT,planned
+AC-12,AC,Thống kê + 7 ngày chi tiêu,,,UT-STAT;IT-STAT,planned
+AC-13,AC,Hũ không tính thu/chi,,,IT-JAR;UT-STAT,planned
+AC-14,AC,Chặn nạp/rút vượt,,,IT-JAR;IT-CONC-BAL,planned
+AC-15,AC,Nhiều draft/1 tin,,,IT-CHAT,planned
+AC-16,AC,Phân biệt mới/sửa/hỏi lại,,,IT-CHAT,planned
+AC-17,AC,Xác nhận lẻ,,,IT-DRAFT;IT-BAL-GUARD,planned
+AC-18,AC,Confirm-all nguyên tử,,,IT-DRAFT-BATCH;IT-CONC,planned
+AC-19,AC,Khôi phục hội thoại đã lưu,,,IT-CONV,planned
+AC-20,AC,Xóa hội thoại giữ giao dịch,,,IT-CONV,planned
+AC-21,AC,Scan nhận món/giá/tổng,,,IT-SCAN,planned
+AC-22,AC,Sửa/thêm/xóa món; đánh dấu thiếu,,,IT-SCAN,planned
+AC-23,AC,Lệch tổng chặn xác nhận,,,UT-RECON;IT-SCAN-CONFIRM,planned
+AC-24,AC,"Ảnh tạm, dọn sạch",,,IT-PRIV;IT-SCAN-ABORT,planned
+AC-25,AC,Không auto category/thuế,,,IT-SCAN,planned
+AC-26,AC,Xác nhận hóa đơn nguyên tử,,,IT-SCAN-CONFIRM;IT-BAL-GUARD,planned
+NFR-SEC,NFR,Bảo mật,,,IT-AUTH;IT-AUTHZ;IT-SEC;UT-REDACT,P1 in-progress
+NFR-PERF,NFR,Hiệu năng/độ bền,,,IT-PROVIDER-MAP;perf-notes,P1 in-progress
+NFR-INT,NFR,Toàn vẹn dữ liệu,,,IT-SCHEMA;UT-MONEY;UT-IDEM;UT-HASH;IT-CONC-BAL,P1 in-progress
+NFR-PRI,NFR,Riêng tư,,,IT-PRIV;UT-REDACT,P1 in-progress
+NFR-USA,NFR,Khả dụng/bảo trì,,,IT-CONTRACT;IT-ENVELOPE;ESLint-boundaries,P1 in-progress

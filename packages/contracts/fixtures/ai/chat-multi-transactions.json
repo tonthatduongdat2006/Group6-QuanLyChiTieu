@@ -1,0 +1,48 @@
+{
+  "name": "chat-multi-transactions",
+  "kind": "chat",
+  "description": "1 tin nhắn có 2 giao dịch → 2 draft (AC-15)",
+  "input": {
+    "content": "Hôm nay tôi ăn phở 45 nghìn, uống cà phê 30 nghìn",
+    "today": "2026-11-24",
+    "categories": [
+      "Ăn uống",
+      "Di chuyển",
+      "Lương"
+    ],
+    "pending_drafts": []
+  },
+  "provider": {
+    "type": "ok",
+    "output": {
+      "intent": "CREATE",
+      "reply": "Mình ghi nhận 2 khoản chi. Bạn kiểm tra rồi xác nhận nhé.",
+      "transactions": [
+        {
+          "type": "EXPENSE",
+          "amount": "45000",
+          "category_name": "Ăn uống",
+          "transaction_date": "2026-11-24",
+          "note": "Ăn phở",
+          "target_draft_ref": null
+        },
+        {
+          "type": "EXPENSE",
+          "amount": "30000",
+          "category_name": "Ăn uống",
+          "transaction_date": "2026-11-24",
+          "note": "Cà phê",
+          "target_draft_ref": null
+        }
+      ]
+    }
+  },
+  "expect": {
+    "drafts": 2,
+    "statuses": [
+      "READY",
+      "READY"
+    ],
+    "transactions_created": 0
+  }
+}

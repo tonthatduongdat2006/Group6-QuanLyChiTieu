@@ -1,0 +1,1623 @@
+openapi: 3.1.0
+info:
+  title: AI Smart Expense API
+  version: 1.2.0
+  description: |
+    Hợp đồng chung FE/BE sinh từ API Documentation v1.1 (QLCT-API-001) — 44 endpoint + 1 endpoint CR-02 = 45.
+    Delta so với v1.1: D-12a/D-12b (DELETE /transactions trả 204, soft delete); CR-02 (PUT /users/me/opening-balance, 2 trường Dashboard).
+    Revision 4.0-MVP (CR-01 E-06): `x-mvp: core` = 19 endpoint dùng trong MVP; `x-mvp: deferred` = 26 endpoint hoãn (giữ hợp đồng).
+    MVP: POST /transactions chỉ nhận type=EXPENSE (INCOME → 422 VALIDATION_ERROR, details field=type).
+    Tiền: chuỗi số nguyên VND dương (vd "45000"). Ngày: YYYY-MM-DD. Timestamp: ISO 8601 UTC.
+servers:
+  - url: /api/v1
+security:
+  - bearerAuth: []
+tags:
+  - name: Auth
+  - name: Users
+  - name: Dashboard
+  - name: Categories
+  - name: Transactions
+  - name: Budgets
+  - name: SavingJars
+  - name: Statistics
+  - name: AIChat
+  - name: AIScan
+
+paths:
+  # ───────────── §2 Auth & Users (6) ─────────────
+  /auth/register:
+    post:
+      tags: [Auth]
+      operationId: register
+      summary: Đăng ký
+      x-mvp: core
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RegisterRequest' }
+      responses:
+        '201':
+          description: Đã tạo tài khoản
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserEnvelope' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /auth/login:
+    post:
+      tags: [Auth]
+      operationId: login
+      summary: Đăng nhập
+      x-mvp: core
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LoginRequest' }
+      responses:
+        '200':
+          description: Đăng nhập thành công
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TokenEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      operationId: refresh
+      summary: Làm mới token
+      x-mvp: core
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RefreshRequest' }
+      responses:
+        '200':
+          description: Token mới (refresh token đã xoay vòng)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TokenEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /auth/logout:
+    post:
+      tags: [Auth]
+      operationId: logout
+      summary: Đăng xuất
+      x-mvp: core
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RefreshRequest' }
+      responses:
+        '200':
+          description: Đã thu hồi phiên
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkEnvelope' }
+  /users/me:
+    get:
+      tags: [Users]
+      operationId: getMe
+      summary: Xem hồ sơ
+      x-mvp: core
+      responses:
+        '200':
+          description: Hồ sơ người dùng
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    patch:
+      tags: [Users]
+      operationId: updateMe
+      summary: Sửa hồ sơ
+      x-mvp: core
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateMeRequest' }
+      responses:
+        '200':
+          description: Hồ sơ đã cập nhật
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /users/me/opening-balance:
+    put:
+      tags: [Users]
+      operationId: setOpeningBalance
+      summary: Thiết lập/sửa số dư ban đầu (CR-02)
+      x-mvp: core
+      description: |
+        CR-02 (D-27). Thiết lập hoặc sửa số dư ban đầu (số nguyên VND ≥ 0, "0" hợp lệ).
+        Sửa được trước khoản chi đầu tiên; sau đó khóa → 409 CONFLICT (details field=opening_balance).
+        Không tạo giao dịch. Không yêu cầu Idempotency-Key (PUT ghi đè là idempotent).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OpeningBalanceRequest' }
+      responses:
+        '200':
+          description: Số dư ban đầu sau khi lưu
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OpeningBalanceEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  # ───────────── §3 Dashboard (1) ─────────────
+  /dashboard:
+    get:
+      tags: [Dashboard]
+      operationId: getDashboard
+      summary: Trang chủ
+      x-mvp: core
+      parameters:
+        - $ref: '#/components/parameters/Month'
+      responses:
+        '200':
+          description: Số liệu trang chủ
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/Dashboard' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  # ───────────── §4 Categories (2) ─────────────
+  /categories:
+    get:
+      tags: [Categories]
+      operationId: listCategories
+      summary: Danh sách danh mục
+      x-mvp: core
+      parameters:
+        - name: type
+          in: query
+          schema: { $ref: '#/components/schemas/TransactionType' }
+      responses:
+        '200':
+          description: Danh mục của người dùng
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Category' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    post:
+      tags: [Categories]
+      operationId: createCategory
+      summary: Tạo danh mục
+      x-mvp: deferred
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateCategoryRequest' }
+      responses:
+        '201':
+          description: Đã tạo danh mục
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/Category' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  # ───────────── §5 Transactions (5) ─────────────
+  /transactions:
+    get:
+      tags: [Transactions]
+      operationId: listTransactions
+      summary: Danh sách giao dịch
+      x-mvp: core
+      parameters:
+        - $ref: '#/components/parameters/Month'
+        - name: type
+          in: query
+          schema: { $ref: '#/components/schemas/TransactionType' }
+        - name: category_id
+          in: query
+          schema: { type: string, format: uuid }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Danh sách giao dịch (phân trang)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Transaction' }
+                  meta: { $ref: '#/components/schemas/PageMeta' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    post:
+      tags: [Transactions]
+      operationId: createTransaction
+      summary: Tạo giao dịch
+      x-mvp: core
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateTransactionRequest' }
+      responses:
+        '201':
+          description: Đã tạo giao dịch
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TransactionEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409': { $ref: '#/components/responses/IdempotencyKeyReused' }
+        '422': { $ref: '#/components/responses/BusinessError' }
+  /transactions/{transactionId}:
+    parameters:
+      - $ref: '#/components/parameters/TransactionId'
+    get:
+      tags: [Transactions]
+      operationId: getTransaction
+      summary: Chi tiết giao dịch
+      x-mvp: core
+      responses:
+        '200':
+          description: Chi tiết giao dịch (kèm receipt nếu là hóa đơn)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TransactionEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [Transactions]
+      operationId: updateTransaction
+      summary: Sửa giao dịch
+      x-mvp: deferred
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateTransactionRequest' }
+      responses:
+        '200':
+          description: Đã cập nhật
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TransactionEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/BusinessError' }
+    delete:
+      tags: [Transactions]
+      operationId: deleteTransaction
+      summary: Xóa giao dịch (soft delete)
+      x-mvp: deferred
+      description: Soft delete (D-12a); giữ receipt child rows (D-12b). Trả 204 cả lần đầu và lần lặp.
+      responses:
+        '204': { description: Đã xóa }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/BusinessError' }
+
+  # ───────────── §6 Budgets (4) ─────────────
+  /budgets:
+    get:
+      tags: [Budgets]
+      operationId: listBudgets
+      summary: Danh sách ngân sách
+      x-mvp: deferred
+      parameters:
+        - $ref: '#/components/parameters/Month'
+      responses:
+        '200':
+          description: Ngân sách tháng kèm số đã chi
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Budget' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    post:
+      tags: [Budgets]
+      operationId: createBudget
+      summary: Tạo ngân sách
+      x-mvp: deferred
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateBudgetRequest' }
+      responses:
+        '201':
+          description: Đã tạo ngân sách
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BudgetEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /budgets/{budgetId}:
+    parameters:
+      - name: budgetId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    patch:
+      tags: [Budgets]
+      operationId: updateBudget
+      summary: Sửa ngân sách
+      x-mvp: deferred
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [limit_amount]
+              additionalProperties: false
+              properties:
+                limit_amount: { $ref: '#/components/schemas/Money' }
+      responses:
+        '200':
+          description: Đã cập nhật
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BudgetEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [Budgets]
+      operationId: deleteBudget
+      summary: Xóa ngân sách
+      x-mvp: deferred
+      responses:
+        '204': { description: Đã xóa }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  # ───────────── §7 Saving Jars (6) — không PATCH/DELETE (D-11) ─────────────
+  /saving-jars:
+    get:
+      tags: [SavingJars]
+      operationId: listSavingJars
+      summary: Danh sách hũ
+      x-mvp: deferred
+      responses:
+        '200':
+          description: Danh sách hũ
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/SavingJar' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    post:
+      tags: [SavingJars]
+      operationId: createSavingJar
+      summary: Tạo hũ
+      x-mvp: deferred
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateSavingJarRequest' }
+      responses:
+        '201':
+          description: Đã tạo hũ (kèm nạp đầu nếu có)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SavingJarEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409': { $ref: '#/components/responses/IdempotencyKeyReused' }
+        '422': { $ref: '#/components/responses/BusinessError' }
+  /saving-jars/{jarId}:
+    parameters:
+      - $ref: '#/components/parameters/JarId'
+    get:
+      tags: [SavingJars]
+      operationId: getSavingJar
+      summary: Chi tiết hũ
+      x-mvp: deferred
+      responses:
+        '200':
+          description: Chi tiết hũ + lịch sử gần đây
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/SavingJarDetail' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /saving-jars/{jarId}/deposits:
+    parameters:
+      - $ref: '#/components/parameters/JarId'
+    post:
+      tags: [SavingJars]
+      operationId: depositToJar
+      summary: Nạp hũ
+      x-mvp: deferred
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/JarTransferRequest' }
+      responses:
+        '201':
+          description: Đã nạp
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/JarTransactionEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/IdempotencyKeyReused' }
+        '422': { $ref: '#/components/responses/BusinessError' }
+  /saving-jars/{jarId}/withdrawals:
+    parameters:
+      - $ref: '#/components/parameters/JarId'
+    post:
+      tags: [SavingJars]
+      operationId: withdrawFromJar
+      summary: Rút hũ
+      x-mvp: deferred
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/JarTransferRequest' }
+      responses:
+        '201':
+          description: Đã rút
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/JarTransactionEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/IdempotencyKeyReused' }
+        '422': { $ref: '#/components/responses/BusinessError' }
+  /saving-jars/{jarId}/transactions:
+    parameters:
+      - $ref: '#/components/parameters/JarId'
+    get:
+      tags: [SavingJars]
+      operationId: listJarTransactions
+      summary: Lịch sử hũ
+      x-mvp: deferred
+      parameters:
+        - name: type
+          in: query
+          schema: { $ref: '#/components/schemas/JarTransactionType' }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Lịch sử nạp/rút
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/JarTransaction' }
+                  meta: { $ref: '#/components/schemas/PageMeta' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  # ───────────── §8 Statistics (3) ─────────────
+  /statistics/overview:
+    get:
+      tags: [Statistics]
+      operationId: getStatisticsOverview
+      summary: Thống kê tổng quan
+      x-mvp: deferred
+      parameters:
+        - $ref: '#/components/parameters/Month'
+      responses:
+        '200':
+          description: Tổng thu/chi/net tháng
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/StatisticsOverview' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /statistics/categories:
+    get:
+      tags: [Statistics]
+      operationId: getCategoryStatistics
+      summary: Thống kê theo danh mục
+      x-mvp: deferred
+      parameters:
+        - $ref: '#/components/parameters/Month'
+        - name: type
+          in: query
+          required: true
+          schema: { $ref: '#/components/schemas/TransactionType' }
+      responses:
+        '200':
+          description: Thống kê theo danh mục
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/CategoryStat' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /statistics/daily-expenses:
+    get:
+      tags: [Statistics]
+      operationId: getDailyExpenses
+      summary: Chi tiêu 7 ngày
+      x-mvp: deferred
+      parameters:
+        - name: from
+          in: query
+          required: true
+          schema: { type: string, format: date }
+        - name: to
+          in: query
+          required: true
+          schema: { type: string, format: date }
+      responses:
+        '200':
+          description: Chi tiêu theo ngày (biểu đồ 7 ngày)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/DailyPoint' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  # ───────────── §9 AI Chat & Conversations (13) ─────────────
+  /ai/conversations:
+    post:
+      tags: [AIChat]
+      operationId: createConversation
+      summary: Tạo hội thoại AI
+      x-mvp: deferred
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                title: { type: [string, 'null'], maxLength: 200 }
+      responses:
+        '201':
+          description: Đã tạo hội thoại
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ConversationEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    get:
+      tags: [AIChat]
+      operationId: listSavedConversations
+      summary: Hội thoại đã lưu
+      x-mvp: deferred
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Chỉ các hội thoại đã lưu
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Conversation' }
+                  meta: { $ref: '#/components/schemas/PageMeta' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /ai/conversations/{conversationId}:
+    parameters:
+      - $ref: '#/components/parameters/ConversationId'
+    get:
+      tags: [AIChat]
+      operationId: getConversation
+      summary: Chi tiết hội thoại
+      x-mvp: deferred
+      responses:
+        '200':
+          description: Metadata hội thoại
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ConversationEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [AIChat]
+      operationId: updateConversation
+      summary: Lưu/đổi tên hội thoại
+      x-mvp: deferred
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [is_saved]
+              additionalProperties: false
+              properties:
+                is_saved: { type: boolean }
+      responses:
+        '200':
+          description: Đã cập nhật trạng thái lưu
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ConversationEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [AIChat]
+      operationId: deleteConversation
+      summary: Xóa hội thoại
+      x-mvp: deferred
+      description: Xóa messages + draft/batch; không đụng giao dịch đã xác nhận.
+      responses:
+        '204': { description: Đã xóa }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /ai/conversations/{conversationId}/messages:
+    parameters:
+      - $ref: '#/components/parameters/ConversationId'
+    post:
+      tags: [AIChat]
+      operationId: sendMessage
+      summary: Gửi tin nhắn AI
+      x-mvp: deferred
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKeyRequired'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [content]
+              additionalProperties: false
+              properties:
+                content: { type: string, minLength: 1, maxLength: 2000 }
+      responses:
+        '201':
+          description: Tin nhắn người dùng + trợ lý + lô draft (không tạo giao dịch)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/SendMessageResult' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/IdempotencyKeyReused' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '502': { $ref: '#/components/responses/AiProviderError' }
+    get:
+      tags: [AIChat]
+      operationId: listMessages
+      summary: Danh sách tin nhắn
+      x-mvp: deferred
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Tin nhắn theo created_at
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Message' }
+                  meta: { $ref: '#/components/schemas/PageMeta' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /ai/conversations/{conversationId}/draft-batches:
+    parameters:
+      - $ref: '#/components/parameters/ConversationId'
+    get:
+      tags: [AIChat]
+      operationId: listDraftBatches
+      summary: Danh sách lô nháp
+      x-mvp: deferred
+      responses:
+        '200':
+          description: Các lô draft để khôi phục hội thoại
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/DraftBatch' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /ai/drafts/{draftId}:
+    parameters:
+      - $ref: '#/components/parameters/DraftId'
+    get:
+      tags: [AIChat]
+      operationId: getDraft
+      summary: Xem nháp
+      x-mvp: core
+      responses:
+        '200':
+          description: Draft + trạng thái validate
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DraftEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [AIChat]
+      operationId: updateDraft
+      summary: Sửa nháp
+      x-mvp: core
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateDraftRequest' }
+      responses:
+        '200':
+          description: Draft sau khi revalidate
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DraftEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /ai/drafts/{draftId}/cancel:
+    parameters:
+      - $ref: '#/components/parameters/DraftId'
+    post:
+      tags: [AIChat]
+      operationId: cancelDraft
+      summary: Hủy nháp
+      x-mvp: deferred
+      responses:
+        '200':
+          description: Draft đã CANCELLED
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DraftEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /ai/drafts/{draftId}/confirm:
+    parameters:
+      - $ref: '#/components/parameters/DraftId'
+    post:
+      tags: [AIChat]
+      operationId: confirmDraft
+      summary: Xác nhận nháp
+      x-mvp: core
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKeyRequired'
+      responses:
+        '200':
+          description: Draft CONFIRMED + giao dịch đã tạo
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/ConfirmDraftResult' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/IdempotencyKeyReused' }
+        '422': { $ref: '#/components/responses/BusinessError' }
+  /ai/draft-batches/{batchId}/confirm-all:
+    parameters:
+      - name: batchId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [AIChat]
+      operationId: confirmAllDrafts
+      summary: Xác nhận tất cả nháp
+      x-mvp: deferred
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKeyRequired'
+      responses:
+        '200':
+          description: Mọi draft pending đã CONFIRMED trong 1 DB transaction
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/DraftBatch' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/IdempotencyKeyReused' }
+        '422': { $ref: '#/components/responses/BusinessError' }
+
+  # ───────────── §10 AI Scan (4) ─────────────
+  /ai/receipts/scan:
+    post:
+      tags: [AIScan]
+      operationId: scanReceipt
+      summary: Quét hóa đơn
+      x-mvp: core
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKeyRequired'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [image]
+              properties:
+                image: { type: string, format: binary }
+      responses:
+        '201':
+          description: 1 lô AI_SCAN + 1 draft hóa đơn
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/ScanResult' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409': { $ref: '#/components/responses/IdempotencyKeyReused' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '502': { $ref: '#/components/responses/AiProviderError' }
+  /ai/drafts/{draftId}/items:
+    parameters:
+      - $ref: '#/components/parameters/DraftId'
+    post:
+      tags: [AIScan]
+      operationId: addDraftItem
+      summary: Thêm món vào nháp
+      x-mvp: core
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DraftItemInput' }
+      responses:
+        '201':
+          description: Draft sau khi thêm món
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DraftEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /ai/draft-items/{itemId}:
+    parameters:
+      - name: itemId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    patch:
+      tags: [AIScan]
+      operationId: updateDraftItem
+      summary: Sửa món
+      x-mvp: core
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DraftItemInput' }
+      responses:
+        '200':
+          description: Draft sau khi sửa món
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DraftEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [AIScan]
+      operationId: deleteDraftItem
+      summary: Xóa món
+      x-mvp: core
+      responses:
+        '200':
+          description: Draft sau khi xóa món
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DraftEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    Month:
+      name: month
+      in: query
+      description: YYYY-MM (mặc định tháng hiện tại theo Asia/Ho_Chi_Minh)
+      schema: { type: string, pattern: '^\d{4}-(0[1-9]|1[0-2])$' }
+    Page:
+      name: page
+      in: query
+      schema: { type: integer, minimum: 1, default: 1 }
+    PageSize:
+      name: page_size
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      description: Khuyến nghị gửi cho mọi mutation có thể thử lại.
+      schema: { type: string, minLength: 8, maxLength: 128 }
+    IdempotencyKeyRequired:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema: { type: string, minLength: 8, maxLength: 128 }
+    TransactionId:
+      name: transactionId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    JarId:
+      name: jarId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    ConversationId:
+      name: conversationId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    DraftId:
+      name: draftId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+
+  responses:
+    BadRequest:
+      description: BAD_REQUEST
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    Unauthorized:
+      description: UNAUTHORIZED
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    NotFound:
+      description: NOT_FOUND (không tồn tại hoặc không thuộc người dùng)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    Conflict:
+      description: CONFLICT
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    IdempotencyKeyReused:
+      description: IDEMPOTENCY_KEY_REUSED hoặc CONFLICT
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    ValidationError:
+      description: VALIDATION_ERROR
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    BusinessError:
+      description: VALIDATION_ERROR | INSUFFICIENT_BALANCE | INSUFFICIENT_JAR_BALANCE | RECEIPT_TOTAL_MISMATCH | BATCH_INVALID
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    RateLimited:
+      description: RATE_LIMITED
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    AiProviderError:
+      description: AI_PROVIDER_ERROR
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+
+  schemas:
+    # ── primitives ──
+    Money:
+      type: string
+      pattern: '^[1-9][0-9]{0,17}$'
+      description: Số nguyên VND dương, dạng chuỗi
+      examples: ['45000']
+    MoneyOrZero:
+      type: string
+      pattern: '^(0|[1-9][0-9]{0,17})$'
+    SignedMoney:
+      type: string
+      pattern: '^-?(0|[1-9][0-9]{0,17})$'
+    TransactionType:
+      type: string
+      enum: [INCOME, EXPENSE]
+    TransactionSource:
+      type: string
+      enum: [MANUAL, AI_CHAT, AI_SCAN]
+    JarTransactionType:
+      type: string
+      enum: [DEPOSIT, WITHDRAW]
+    DraftStatus:
+      type: string
+      enum: [NEEDS_INPUT, READY, CONFIRMED, CANCELLED, EXPIRED]
+    MessageRole:
+      type: string
+      enum: [USER, ASSISTANT]
+    BatchSourceType:
+      type: string
+      enum: [AI_CHAT, AI_SCAN]
+    ErrorCode:
+      type: string
+      enum:
+        - BAD_REQUEST
+        - UNAUTHORIZED
+        - FORBIDDEN
+        - NOT_FOUND
+        - CONFLICT
+        - IDEMPOTENCY_KEY_REUSED
+        - VALIDATION_ERROR
+        - BATCH_INVALID
+        - INSUFFICIENT_BALANCE
+        - INSUFFICIENT_JAR_BALANCE
+        - RECEIPT_TOTAL_MISMATCH
+        - RATE_LIMITED
+        - INTERNAL_SERVER_ERROR
+        - AI_PROVIDER_ERROR
+        - SERVICE_UNAVAILABLE
+
+    # ── envelopes ──
+    ErrorEnvelope:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message, request_id]
+          properties:
+            code: { $ref: '#/components/schemas/ErrorCode' }
+            message: { type: string }
+            details:
+              type: array
+              items:
+                type: object
+                required: [message]
+                properties:
+                  field: { type: string }
+                  message: { type: string }
+                  draft_id: { type: string, format: uuid }
+            request_id: { type: string }
+    PageMeta:
+      type: object
+      required: [page, page_size, total, total_pages]
+      properties:
+        page: { type: integer }
+        page_size: { type: integer }
+        total: { type: integer }
+        total_pages: { type: integer }
+    OkEnvelope:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          required: [ok]
+          properties:
+            ok: { type: boolean }
+
+    # ── auth/user ──
+    RegisterRequest:
+      type: object
+      required: [full_name, email, password, terms_accepted]
+      additionalProperties: false
+      properties:
+        full_name: { type: string, minLength: 1, maxLength: 120 }
+        email: { type: string, format: email, maxLength: 254 }
+        password: { type: string, minLength: 8, maxLength: 128 }
+        phone: { type: [string, 'null'], maxLength: 20 }
+        terms_accepted: { type: boolean, const: true }
+    LoginRequest:
+      type: object
+      required: [email, password]
+      additionalProperties: false
+      properties:
+        email: { type: string }
+        password: { type: string }
+        remember_me: { type: boolean, default: false }
+    RefreshRequest:
+      type: object
+      required: [refresh_token]
+      additionalProperties: false
+      properties:
+        refresh_token: { type: string, minLength: 1 }
+    TokenEnvelope:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          required: [access_token, refresh_token, token_type, expires_in]
+          properties:
+            access_token: { type: string }
+            refresh_token: { type: string }
+            token_type: { type: string, const: Bearer }
+            expires_in: { type: integer }
+    User:
+      type: object
+      required: [id, full_name, email, phone]
+      properties:
+        id: { type: string, format: uuid }
+        full_name: { type: string }
+        email: { type: string }
+        phone: { type: [string, 'null'] }
+    UserEnvelope:
+      type: object
+      required: [data]
+      properties:
+        data: { $ref: '#/components/schemas/User' }
+    OpeningBalanceRequest:
+      type: object
+      additionalProperties: false
+      required: [amount]
+      properties:
+        amount: { $ref: '#/components/schemas/MoneyOrZero' }
+    OpeningBalance:
+      type: object
+      required: [opening_balance, opening_balance_set, locked]
+      properties:
+        opening_balance: { $ref: '#/components/schemas/MoneyOrZero' }
+        opening_balance_set: { type: boolean }
+        locked: { type: boolean, description: 'true khi đã có khoản chi (CR-02 OB-4)' }
+    OpeningBalanceEnvelope:
+      type: object
+      required: [data]
+      properties:
+        data: { $ref: '#/components/schemas/OpeningBalance' }
+    UpdateMeRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        full_name: { type: string, minLength: 1, maxLength: 120 }
+        phone: { type: [string, 'null'], maxLength: 20 }
+
+    # ── category ──
+    Category:
+      type: object
+      required: [id, name, type, is_default]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        type: { $ref: '#/components/schemas/TransactionType' }
+        is_default: { type: boolean }
+    CreateCategoryRequest:
+      type: object
+      required: [name, type]
+      additionalProperties: false
+      properties:
+        name: { type: string, minLength: 1, maxLength: 50 }
+        type: { $ref: '#/components/schemas/TransactionType' }
+
+    # ── transactions ──
+    ReceiptItem:
+      type: object
+      required: [item_name, amount, sort_order]
+      properties:
+        id: { type: string, format: uuid }
+        item_name: { type: string, minLength: 1, maxLength: 200 }
+        amount: { $ref: '#/components/schemas/Money' }
+        sort_order: { type: integer, minimum: 0 }
+    Receipt:
+      type: object
+      required: [merchant_name, items]
+      properties:
+        merchant_name: { type: [string, 'null'] }
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/ReceiptItem' }
+    Transaction:
+      type: object
+      required: [id, type, amount, category, transaction_date, note, source, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        type: { $ref: '#/components/schemas/TransactionType' }
+        amount: { $ref: '#/components/schemas/Money' }
+        category:
+          type: object
+          required: [id, name]
+          properties:
+            id: { type: string, format: uuid }
+            name: { type: string }
+        transaction_date: { type: string, format: date }
+        note: { type: [string, 'null'] }
+        source: { $ref: '#/components/schemas/TransactionSource' }
+        receipt:
+          oneOf:
+            - $ref: '#/components/schemas/Receipt'
+            - type: 'null'
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    TransactionEnvelope:
+      type: object
+      required: [data]
+      properties:
+        data: { $ref: '#/components/schemas/Transaction' }
+    CreateTransactionRequest:
+      type: object
+      required: [type, amount, category_id, transaction_date]
+      additionalProperties: false
+      properties:
+        type: { $ref: '#/components/schemas/TransactionType' }
+        amount: { $ref: '#/components/schemas/Money' }
+        category_id: { type: string, format: uuid }
+        note: { type: [string, 'null'], maxLength: 500 }
+        transaction_date: { type: string, format: date }
+    UpdateTransactionRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        amount: { $ref: '#/components/schemas/Money' }
+        category_id: { type: string, format: uuid }
+        note: { type: [string, 'null'], maxLength: 500 }
+        transaction_date: { type: string, format: date }
+        receipt:
+          type: object
+          required: [items]
+          additionalProperties: false
+          properties:
+            merchant_name: { type: [string, 'null'], maxLength: 200 }
+            items:
+              type: array
+              minItems: 1
+              items: { $ref: '#/components/schemas/ReceiptItem' }
+
+    # ── dashboard / budgets ──
+    BudgetAlert:
+      type: object
+      required: [budget_id, category_id, category_name, limit_amount, spent_amount, usage_percent, level]
+      properties:
+        budget_id: { type: string, format: uuid }
+        category_id: { type: string, format: uuid }
+        category_name: { type: string }
+        limit_amount: { $ref: '#/components/schemas/Money' }
+        spent_amount: { $ref: '#/components/schemas/MoneyOrZero' }
+        usage_percent: { type: integer, minimum: 0 }
+        level: { type: string, enum: [WARNING, EXCEEDED] }
+    Dashboard:
+      type: object
+      required: [available_balance, opening_balance, opening_balance_set, monthly_income, monthly_expense, recent_transactions, budget_alerts]
+      description: 'MVP (CR-02): available_balance = opening_balance − Σ khoản chi; monthly_income luôn "0", budget_alerts luôn [].'
+      properties:
+        available_balance: { $ref: '#/components/schemas/MoneyOrZero' }
+        opening_balance: { $ref: '#/components/schemas/MoneyOrZero' }
+        opening_balance_set: { type: boolean, description: 'false = chưa thiết lập (CR-02 OB-1)' }
+        monthly_income: { $ref: '#/components/schemas/MoneyOrZero' }
+        monthly_expense: { $ref: '#/components/schemas/MoneyOrZero' }
+        recent_transactions:
+          type: array
+          maxItems: 5
+          items: { $ref: '#/components/schemas/Transaction' }
+        budget_alerts:
+          type: array
+          items: { $ref: '#/components/schemas/BudgetAlert' }
+    Budget:
+      type: object
+      required: [id, category_id, category_name, month_start, limit_amount, spent_amount, remaining_amount, usage_percent]
+      properties:
+        id: { type: string, format: uuid }
+        category_id: { type: string, format: uuid }
+        category_name: { type: string }
+        month_start: { type: string, format: date }
+        limit_amount: { $ref: '#/components/schemas/Money' }
+        spent_amount: { $ref: '#/components/schemas/MoneyOrZero' }
+        remaining_amount: { $ref: '#/components/schemas/SignedMoney' }
+        usage_percent: { type: integer, minimum: 0 }
+    BudgetEnvelope:
+      type: object
+      required: [data]
+      properties:
+        data: { $ref: '#/components/schemas/Budget' }
+    CreateBudgetRequest:
+      type: object
+      required: [category_id, month_start, limit_amount]
+      additionalProperties: false
+      properties:
+        category_id: { type: string, format: uuid }
+        month_start: { type: string, format: date }
+        limit_amount: { $ref: '#/components/schemas/Money' }
+
+    # ── saving jars ──
+    SavingJar:
+      type: object
+      required: [id, name, target_amount, current_balance, progress_percent]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        target_amount: { $ref: '#/components/schemas/Money' }
+        current_balance: { $ref: '#/components/schemas/MoneyOrZero' }
+        progress_percent: { type: integer, minimum: 0 }
+    SavingJarEnvelope:
+      type: object
+      required: [data]
+      properties:
+        data: { $ref: '#/components/schemas/SavingJar' }
+    SavingJarDetail:
+      allOf:
+        - $ref: '#/components/schemas/SavingJar'
+        - type: object
+          required: [recent_transactions]
+          properties:
+            recent_transactions:
+              type: array
+              items: { $ref: '#/components/schemas/JarTransaction' }
+    CreateSavingJarRequest:
+      type: object
+      required: [name, target_amount]
+      additionalProperties: false
+      properties:
+        name: { type: string, minLength: 1, maxLength: 100 }
+        target_amount: { $ref: '#/components/schemas/Money' }
+        initial_deposit: { $ref: '#/components/schemas/MoneyOrZero' }
+    JarTransferRequest:
+      type: object
+      required: [amount]
+      additionalProperties: false
+      properties:
+        amount: { $ref: '#/components/schemas/Money' }
+        note: { type: [string, 'null'], maxLength: 500 }
+    JarTransaction:
+      type: object
+      required: [id, jar_id, type, amount, transaction_date, note]
+      properties:
+        id: { type: string, format: uuid }
+        jar_id: { type: string, format: uuid }
+        type: { $ref: '#/components/schemas/JarTransactionType' }
+        amount: { $ref: '#/components/schemas/Money' }
+        transaction_date: { type: string, format: date-time }
+        note: { type: [string, 'null'] }
+    JarTransactionEnvelope:
+      type: object
+      required: [data]
+      properties:
+        data: { $ref: '#/components/schemas/JarTransaction' }
+
+    # ── statistics ──
+    StatisticsOverview:
+      type: object
+      required: [month, total_income, total_expense, net_change]
+      properties:
+        month: { type: string }
+        total_income: { $ref: '#/components/schemas/MoneyOrZero' }
+        total_expense: { $ref: '#/components/schemas/MoneyOrZero' }
+        net_change: { $ref: '#/components/schemas/SignedMoney' }
+    CategoryStat:
+      type: object
+      required: [category_id, category_name, amount, percent]
+      properties:
+        category_id: { type: string, format: uuid }
+        category_name: { type: string }
+        amount: { $ref: '#/components/schemas/MoneyOrZero' }
+        percent: { type: number, minimum: 0, maximum: 100 }
+    DailyPoint:
+      type: object
+      required: [date, amount]
+      properties:
+        date: { type: string, format: date }
+        amount: { $ref: '#/components/schemas/MoneyOrZero' }
+
+    # ── AI ──
+    Conversation:
+      type: object
+      required: [id, title, is_saved, saved_at, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: [string, 'null'] }
+        is_saved: { type: boolean }
+        saved_at: { type: [string, 'null'], format: date-time }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    ConversationEnvelope:
+      type: object
+      required: [data]
+      properties:
+        data: { $ref: '#/components/schemas/Conversation' }
+    Message:
+      type: object
+      required: [id, role, content, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        role: { $ref: '#/components/schemas/MessageRole' }
+        content: { type: string }
+        created_at: { type: string, format: date-time }
+    ValidationIssue:
+      type: object
+      required: [field, message]
+      properties:
+        field: { type: string }
+        message: { type: string }
+    DraftItem:
+      type: object
+      required: [id, item_name, amount, sort_order]
+      properties:
+        id: { type: string, format: uuid }
+        item_name: { type: [string, 'null'] }
+        amount:
+          oneOf:
+            - $ref: '#/components/schemas/Money'
+            - type: 'null'
+        sort_order: { type: integer }
+    Draft:
+      type: object
+      required: [id, batch_id, transaction_type, amount, category_id, transaction_date, note, merchant_name, status, validation_errors, transaction_id, items]
+      properties:
+        id: { type: string, format: uuid }
+        batch_id: { type: string, format: uuid }
+        transaction_type:
+          oneOf:
+            - $ref: '#/components/schemas/TransactionType'
+            - type: 'null'
+        amount:
+          oneOf:
+            - $ref: '#/components/schemas/Money'
+            - type: 'null'
+        category_id: { type: [string, 'null'], format: uuid }
+        transaction_date: { type: [string, 'null'], format: date }
+        note: { type: [string, 'null'] }
+        merchant_name: { type: [string, 'null'] }
+        status: { $ref: '#/components/schemas/DraftStatus' }
+        validation_errors:
+          type: array
+          items: { $ref: '#/components/schemas/ValidationIssue' }
+        transaction_id: { type: [string, 'null'], format: uuid }
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/DraftItem' }
+    DraftEnvelope:
+      type: object
+      required: [data]
+      properties:
+        data: { $ref: '#/components/schemas/Draft' }
+    UpdateDraftRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        transaction_type: { $ref: '#/components/schemas/TransactionType' }
+        amount: { $ref: '#/components/schemas/Money' }
+        category_id: { type: string, format: uuid }
+        transaction_date: { type: string, format: date }
+        note: { type: [string, 'null'], maxLength: 500 }
+        merchant_name: { type: [string, 'null'], maxLength: 200 }
+    DraftItemInput:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        item_name: { type: string, minLength: 1, maxLength: 200 }
+        amount: { $ref: '#/components/schemas/Money' }
+    DraftBatch:
+      type: object
+      required: [id, source_type, conversation_id, source_message_id, drafts, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        source_type: { $ref: '#/components/schemas/BatchSourceType' }
+        conversation_id: { type: [string, 'null'], format: uuid }
+        source_message_id: { type: [string, 'null'], format: uuid }
+        drafts:
+          type: array
+          items: { $ref: '#/components/schemas/Draft' }
+        created_at: { type: string, format: date-time }
+    SendMessageResult:
+      type: object
+      required: [user_message, assistant_message, draft_batch]
+      properties:
+        user_message: { $ref: '#/components/schemas/Message' }
+        assistant_message: { $ref: '#/components/schemas/Message' }
+        draft_batch:
+          oneOf:
+            - $ref: '#/components/schemas/DraftBatch'
+            - type: 'null'
+    ConfirmDraftResult:
+      type: object
+      required: [draft, transaction]
+      properties:
+        draft: { $ref: '#/components/schemas/Draft' }
+        transaction: { $ref: '#/components/schemas/Transaction' }
+    ScanResult:
+      type: object
+      required: [draft_batch, draft]
+      properties:
+        draft_batch:
+          type: object
+          required: [id, source_type]
+          properties:
+            id: { type: string, format: uuid }
+            source_type: { $ref: '#/components/schemas/BatchSourceType' }
+        draft: { $ref: '#/components/schemas/Draft' }

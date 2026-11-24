@@ -1,0 +1,17 @@
+{
+  "name": "ai-smart-expense",
+  "private": true,
+  "packageManager": "pnpm@10.18.0",
+  "engines": { "node": ">=22 <23" },
+  "scripts": {
+    "lint": "pnpm -r --parallel run lint",
+    "typecheck": "pnpm -r --parallel run typecheck",
+    "test": "pnpm -r run test",
+    "test:int": "pnpm --filter @ase/api run test:int",
+    "contract:check": "pnpm --filter @ase/contracts run check",
+    "format": "prettier --write ."
+  },
+  "devDependencies": {
+    "prettier": "^3.6.2"
+  }
+}

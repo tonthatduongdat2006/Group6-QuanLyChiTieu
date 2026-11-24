@@ -1,0 +1,20 @@
+{
+  "name": "receipt-not-a-receipt",
+  "kind": "receipt",
+  "description": "Ảnh không phải hóa đơn → draft rỗng NEEDS_INPUT",
+  "input": {
+    "image": "generated:solid-color"
+  },
+  "provider": {
+    "type": "ok",
+    "output": {
+      "merchant_name": null,
+      "transaction_date": null,
+      "total": null,
+      "items": []
+    }
+  },
+  "expect": {
+    "status": "NEEDS_INPUT"
+  }
+}

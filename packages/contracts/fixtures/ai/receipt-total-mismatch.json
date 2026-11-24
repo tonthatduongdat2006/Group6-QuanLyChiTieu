@@ -1,0 +1,31 @@
+{
+  "name": "receipt-total-mismatch",
+  "kind": "receipt",
+  "description": "Tổng in khác Σ món (VAT ẩn) → chặn xác nhận, không tự sửa (AC-23)",
+  "input": {
+    "image": "generated:receipt-mismatch"
+  },
+  "provider": {
+    "type": "ok",
+    "output": {
+      "merchant_name": "Nhà hàng B",
+      "transaction_date": "2026-11-11",
+      "total": "110000",
+      "items": [
+        {
+          "item_name": "Cơm gà",
+          "amount": "60000"
+        },
+        {
+          "item_name": "Nước cam",
+          "amount": "40000"
+        }
+      ]
+    }
+  },
+  "expect": {
+    "status": "NEEDS_INPUT",
+    "mismatch": true,
+    "items": 2
+  }
+}

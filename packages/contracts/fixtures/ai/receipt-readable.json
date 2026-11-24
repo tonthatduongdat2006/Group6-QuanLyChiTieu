@@ -1,0 +1,34 @@
+{
+  "name": "receipt-readable",
+  "kind": "receipt",
+  "description": "Hóa đơn đọc được, tổng khớp; category vẫn null (AC-21, AC-25)",
+  "input": {
+    "image": "generated:receipt-readable"
+  },
+  "provider": {
+    "type": "ok",
+    "output": {
+      "merchant_name": "Cửa hàng A",
+      "transaction_date": "2026-11-10",
+      "total": "100000",
+      "items": [
+        {
+          "item_name": "Phở",
+          "amount": "45000"
+        },
+        {
+          "item_name": "Cà phê",
+          "amount": "55000"
+        }
+      ]
+    }
+  },
+  "expect": {
+    "status": "NEEDS_INPUT",
+    "missing": [
+      "category_id"
+    ],
+    "items": 2,
+    "mismatch": false
+  }
+}
