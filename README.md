@@ -103,3 +103,4 @@ Hướng dẫn triển khai, kịch bản trình diễn và giới hạn đã bi
 - **Idempotency:** dùng `common/idempotency` + đúng cột ERD (`IDEMPOTENT_OPERATIONS` ghi cột tương ứng).
 - **FE:** Presentational chỉ nhận props; Container gọi API + Rule; ESLint sẽ chặn nếu vi phạm.
 - **Migration:** do **Prisma Migrate** quản lý (K10b); không sửa migration đã áp dụng; thay đổi = migration mới + `prisma:drift` rỗng. Quy trình baseline/XN-1: `planning-mvp.md` §7.
+<!-- Vercel deployment trigger -->
