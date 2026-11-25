@@ -1,4 +1,4 @@
-import { ParsedMessageDraft } from '../../../../packages/contracts/src/ai-text';
+import { ParsedMessageDraft } from './ai-text.types';
 
 function toBigIntString(value: bigint): string {
   return value < 0n ? '0' : value.toString();
