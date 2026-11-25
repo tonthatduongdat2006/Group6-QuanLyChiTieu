@@ -4,11 +4,10 @@ export interface ParseMessageRequest {
 }
 
 export interface ParsedMessageDraft {
-  amount?: number;
-  currency?: string;
-  category?: string;
-  description?: string;
-  type?: 'expense' | 'income';
-  date?: string;
-  confidence?: number;
+  amountMinor: string;
+  currency: string;
+  merchantOrNote: string;
+  categoryHint: string;
+  occurredAt: string;
+  confidence: number;
 }
