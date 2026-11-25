@@ -18,6 +18,7 @@ import { TransactionModule } from './modules/transaction/transaction.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { AiProviderModule } from './modules/ai-provider/ai-provider.module';
 import { AiScanModule } from './modules/ai-scan/ai-scan.module';
+import { AiTextModule } from './modules/ai-text/ai-text.module';
 
 @Module({
   imports: [
@@ -26,7 +27,9 @@ import { AiScanModule } from './modules/ai-scan/ai-scan.module';
     ThrottlerModule.forRootAsync({
       inject: [APP_CONFIG],
       useFactory: (cfg: AppConfig) => ({
-        throttlers: [{ name: 'default', ttl: cfg.throttleTtlMs, limit: cfg.throttleLimit }],
+        throttlers: [
+          { name: 'default', ttl: cfg.throttleTtlMs, limit: cfg.throttleLimit },
+        ],
         // Integration test gọi auth liên tục từ cùng IP → tắt throttle trong NODE_ENV=test
         skipIf: () => cfg.nodeEnv === 'test',
       }),
@@ -40,6 +43,7 @@ import { AiScanModule } from './modules/ai-scan/ai-scan.module';
     DashboardModule,
     AiProviderModule,
     AiScanModule,
+    AiTextModule,
   ],
   controllers: [HealthController],
   providers: [
