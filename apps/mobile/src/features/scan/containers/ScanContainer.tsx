@@ -1,7 +1,9 @@
 // Container AI Scan (M2-04): chọn + nén ảnh → tải lên (hủy được) → trình sửa nháp → đồng bộ sửa đổi → xác nhận lưu.
+// Hỗ trợ thêm nhập nhanh từ tin nhắn văn bản qua QuickMessageContainer.
 // Rule đối soát chạy phía client chỉ để gợi ý; server quyết định (RECEIPT_TOTAL_MISMATCH, INSUFFICIENT_BALANCE…).
 import { useMemo, useRef, useState } from 'react';
 import { router } from 'expo-router';
+import type { ParsedMessageDraft } from '@ase/contracts/src/ai-text';
 import { newIntentKey } from '@/api/client';
 import { ApiError, toUserMessage } from '@/api/errors';
 import { financeApi, type Draft } from '@/api/finance';
@@ -14,6 +16,7 @@ import { isDraftConfirmable, receiptReconcile, receiptSum } from '@/rules/receip
 import { Screen, Sheet } from '@/ui';
 import { OpeningBalanceContainer } from '../../balance/containers/OpeningBalanceContainer';
 import { ReceiptDraftEditor, ScanSaved, ScanStart, ScanUploading, type ReceiptDraftEditorProps } from '../components/ScanViews';
+import { QuickMessageContainer } from '../QuickMessageContainer';
 
 interface EditItem {
   key: string;
@@ -56,10 +59,42 @@ export function ScanContainer() {
   const [askOpening, setAskOpening] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
+  const apiBaseUrl =
+    process.env.EXPO_PUBLIC_API_URL ??
+    'https://group6-quanlychitieu-api.vercel.app/api/v1';
+
   /** Dọn ảnh khỏi bộ nhớ (AC-24): thu hồi object URL, bỏ tham chiếu. */
   const dropImage = (img: PickedImage | null) => {
     img?.release();
     setPicked(null);
+  };
+
+  const handleMessageDraftReady = (parsed: ParsedMessageDraft) => {
+    setError(null);
+    const matchedCat = (cats.data ?? []).find(
+      (c) => c.name.trim().toLowerCase() === parsed.categoryHint.trim().toLowerCase()
+    );
+
+    const syntheticDraft: Draft = {
+      id: `msg-${Date.now()}`,
+      status: 'pending',
+      merchant_name: parsed.merchantOrNote || null,
+      transaction_date: parsed.occurredAt,
+      amount: parsed.amountMinor,
+      category_id: matchedCat?.id ?? null,
+      items: [],
+    } as Draft;
+
+    setDraft(syntheticDraft);
+    setEdit({
+      merchant: parsed.merchantOrNote,
+      date: parsed.occurredAt,
+      total: parsed.amountMinor,
+      categoryId: matchedCat?.id ?? '',
+      items: [],
+    });
+    setNotice('Đã bóc tách từ tin nhắn. Kiểm tra lại thông tin trước khi bấm “Xác nhận lưu”.');
+    setStage({ kind: 'editing' });
   };
 
   const onPick = async () => {
@@ -143,6 +178,32 @@ export function ScanContainer() {
     setError(null);
     setNotice(null);
     try {
+      // Nếu nháp được khởi tạo từ tin nhắn văn bản (chưa có draft trên server), tạo khoản chi trực tiếp qua luồng chuẩn (vẫn đi qua BalanceGuard)
+      if (draft.id.startsWith('msg-')) {
+        const res = await financeApi.createTransaction({
+          amount: BigInt(edit.total).toString(),
+          category_id: edit.categoryId,
+          transaction_date: edit.date,
+          note: edit.merchant.trim() || undefined,
+          idempotency_key: confirmIntent.forPayload({
+            source: 'ai_text',
+            amount: edit.total,
+            date: edit.date,
+            categoryId: edit.categoryId,
+          }),
+        });
+        confirmIntent.reset();
+        invalidate();
+        setStage({
+          kind: 'saved',
+          amount: res.transaction.amount,
+          merchant: edit.merchant.trim() || null,
+        });
+        setDraft(null);
+        setEdit(null);
+        return;
+      }
+
       const latest = await sync(draft, edit);
       setDraft(latest);
       setEdit(fromDraft(latest));
@@ -163,13 +224,15 @@ export function ScanContainer() {
         if (e instanceof ApiError && e.code === 'IDEMPOTENCY_KEY_REUSED') confirmIntent.reset();
         setError(toUserMessage(e));
       }
-      // Nháp vẫn còn ở trạng thái chờ trên server — tải lại để hiển thị đúng
-      try {
-        const fresh = await financeApi.getDraft(draft.id);
-        setDraft(fresh);
-        setEdit(fromDraft(fresh));
-      } catch {
-        /* giữ nguyên trạng thái cục bộ */
+      // Nháp scan vẫn còn ở trạng thái chờ trên server — tải lại để hiển thị đúng
+      if (!draft.id.startsWith('msg-')) {
+        try {
+          const fresh = await financeApi.getDraft(draft.id);
+          setDraft(fresh);
+          setEdit(fromDraft(fresh));
+        } catch {
+          /* giữ nguyên trạng thái cục bộ */
+        }
       }
     } finally {
       setConfirming(false);
@@ -220,7 +283,15 @@ export function ScanContainer() {
       };
       return <ReceiptDraftEditor {...vm} />;
     }
-    return <ScanStart error={error} picking={picking} onPick={() => void onPick()} />;
+    return (
+      <>
+        <ScanStart error={error} picking={picking} onPick={() => void onPick()} />
+        <QuickMessageContainer
+          apiBaseUrl={apiBaseUrl}
+          onDraftReady={handleMessageDraftReady}
+        />
+      </>
+    );
   };
 
   return (
