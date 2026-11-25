@@ -1,5 +1,5 @@
 import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
-import { ParseMessageRequest } from '@ase/contracts/src/ai-text';
+import { ParseMessageRequest } from '../../../../packages/contracts/src/ai-text';
 import { parseExpenseMessage } from './message-parser.util';
 
 @Controller('ai/text')
