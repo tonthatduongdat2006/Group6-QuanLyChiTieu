@@ -15,7 +15,7 @@ export function configureApp(app: INestApplication): INestApplication {
   app.use(helmet());
   app.enableCors({
     // Mobile app không cần CORS; chỉ mở cho origin được khai báo (vd Expo web khi dev)
-    origin: cfg.corsOrigins.length ? cfg.corsOrigins : false,
+    origin: true,
     allowedHeaders: ['Authorization', 'Content-Type', 'Idempotency-Key', 'X-Request-Id'],
     exposedHeaders: ['X-Request-Id'],
   });
