@@ -1,0 +1,51 @@
+# E2E-01 (P1-TD-01) — đăng ký → đăng nhập → đăng xuất, kèm các lỗi hợp lệ (AC-01…03)
+# Chạy: BE + DB test đang chạy, app dev build đã cài; `maestro test e2e/`
+appId: vn.edu.aismartexpense
+---
+- evalScript: ${output.email = 'e2e-' + Date.now() + '@test.vn'}
+- launchApp:
+    clearState: true
+- tapOn:
+    id: go-register
+# Thiếu điều khoản + mật khẩu ngắn
+- tapOn: { id: reg-name }
+- inputText: Người Dùng E2E
+- tapOn: { id: reg-email }
+- inputText: ${output.email}
+- tapOn: { id: reg-password }
+- inputText: '1234567'
+- tapOn: { id: reg-confirm }
+- inputText: '1234567'
+- hideKeyboard
+- tapOn: { id: reg-submit }
+- assertVisible: Mật khẩu phải có ít nhất 8 ký tự
+- assertVisible: Bạn cần đồng ý với điều khoản sử dụng
+# Sửa lại cho hợp lệ
+- tapOn: { id: reg-password }
+- eraseText
+- inputText: Example123
+- tapOn: { id: reg-confirm }
+- eraseText
+- inputText: Example123
+- hideKeyboard
+- tapOn: { id: reg-terms }
+- tapOn: { id: reg-submit }
+- assertVisible: Đăng ký thành công, mời bạn đăng nhập
+# Sai mật khẩu
+- tapOn: { id: login-password }
+- inputText: WrongPass1
+- hideKeyboard
+- tapOn: { id: login-submit }
+- assertVisible: Email hoặc mật khẩu không đúng
+# Đúng mật khẩu
+- tapOn: { id: login-password }
+- eraseText
+- inputText: Example123
+- hideKeyboard
+- tapOn: { id: login-submit }
+- assertVisible: Trang chủ
+- tapOn: Cá nhân
+- assertVisible: ${output.email}
+- tapOn: { id: logout }
+- tapOn: { id: logout-confirm }
+- assertVisible: Đăng nhập

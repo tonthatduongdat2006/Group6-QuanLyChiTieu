@@ -1,0 +1,37 @@
+{
+  "name": "chat-ambiguous",
+  "kind": "chat",
+  "description": "Không rõ sửa draft nào → hỏi lại, không đổi draft (AC-16)",
+  "input": {
+    "content": "cái đó là 20 nghìn thôi",
+    "today": "2026-11-24",
+    "categories": [
+      "Ăn uống"
+    ],
+    "pending_drafts": [
+      {
+        "ref": "d1",
+        "note": "Bánh mì",
+        "amount": "25000"
+      },
+      {
+        "ref": "d2",
+        "note": "Trà đá",
+        "amount": "5000"
+      }
+    ]
+  },
+  "provider": {
+    "type": "ok",
+    "output": {
+      "intent": "CLARIFY",
+      "reply": "Bạn muốn sửa khoản bánh mì hay trà đá?",
+      "transactions": []
+    }
+  },
+  "expect": {
+    "drafts_created": 0,
+    "drafts_updated": [],
+    "transactions_created": 0
+  }
+}

@@ -1,0 +1,53 @@
+id,kind,description,mvp_status,tasks_rev4,api_or_ui,tests,source
+FR-01,FR,Đăng ký,MVP,M0-04,POST /auth/register; GET/PATCH /users/me,IT-AUTH;IT-USER;UT-VALID;E2E-01,PRD v1.1
+FR-02,FR,Đăng nhập/đăng xuất,MVP (ngoại lệ E-04: ẩn remember-me trên web),M0-04,"POST /auth/login,/auth/refresh,/auth/logout",IT-AUTH;IT-AUTH-REFRESH;UT-FE-SESSION;E2E-01,PRD v1.1 + CR-01
+FR-03,FR,Dashboard,MVP thu gọn,M1-02;M1-03,GET /dashboard,IT-DASH;IT-FE-CONTAINER,PRD v1.1 + CR-02
+FR-04,FR,Khoản chi thủ công,MVP thu gọn (chỉ EXPENSE),M1-02;M1-03,POST /transactions,IT-TX;IT-BAL-GUARD;IT-CONC-BAL;IT-IDEM;E2E-02,PRD v1.1 + CR-01 + CR-02
+FR-05,FR,Danh mục,MVP thu gọn (chỉ xem danh mục chi mặc định),M0-04;M1-02,GET /categories,IT-CAT-PROV;UT-CAT-NORM,PRD v1.1 + CR-01
+FR-06,FR,Ngân sách,Hoãn (CR-01),,/budgets,,PRD v1.1
+FR-07,FR,Lịch sử/sửa/xóa,MVP thu gọn (chỉ xem),M1-02;M1-03,GET /transactions; GET /transactions/{transactionId},IT-TX;IT-AUTHZ,PRD v1.1 + CR-01
+FR-08,FR,Thống kê,Hoãn (CR-01),,/statistics/*,,PRD v1.1
+FR-09,FR,Hũ tiết kiệm,Hoãn (CR-01),,/saving-jars*,,PRD v1.1
+FR-10,FR,AI Chat,Hoãn (CR-01),,/ai/conversations*; confirm-all; cancel,,PRD v1.1
+FR-11,FR,AI Scan,MVP,M2-01;M2-02;M2-03;M2-04,POST /ai/receipts/scan; GET/PATCH /ai/drafts/{draftId}; draft items,IT-SCAN;IT-SCAN-IDEM;IT-PRIV;IT-SCAN-FAIL;IT-SCAN-ABORT;IT-AI-ADV;UT-RECON;E2E-09;E2E-10,PRD v1.1
+FR-12,FR,Xác nhận hóa đơn,MVP + CR-02,M2-03;M2-04,POST /ai/drafts/{draftId}/confirm,IT-SCAN-CONFIRM;IT-BAL-GUARD;IT-DRAFT-AUTHZ;E2E-09,PRD v1.1 + CR-02
+AC-01,AC,Đăng ký hợp lệ,MVP,M0-04,,IT-AUTH;E2E-01,PRD v1.1
+AC-02,AC,Từ chối đăng ký sai,MVP,M0-04,,IT-AUTH;UT-VALID;UT-FE-VALID;E2E-01,PRD v1.1
+AC-03,AC,Đăng nhập/đăng xuất; web không remember-me,MVP (AC-03′),M0-04,,IT-AUTH;IT-AUTH-REFRESH;UT-FE-SESSION;E2E-01,PRD v1.1
+AC-04,AC,Dashboard số dư = opening − Σ chi; chi tháng; 5 gần nhất,MVP (AC-04′),M1-02;M1-03,,IT-DASH;IT-FE-CONTAINER,PRD v1.1
+AC-05,AC,Tạo khoản chi khi đạt CR-02,MVP (AC-05′),M1-02;M1-03,,IT-TX;IT-BAL-GUARD;E2E-02,PRD v1.1
+AC-06,AC,Từ chối dữ liệu sai/không đủ số dư/INCOME,MVP (AC-06′),M1-02,,IT-TX;UT-MONEY;IT-BAL-GUARD,PRD v1.1
+AC-07,AC,Xem danh mục chi mặc định,MVP (AC-07′; tạo danh mục hoãn),M1-02,,IT-CAT-PROV;IT-TX,PRD v1.1
+AC-08,AC,CRUD ngân sách,Hoãn,,,,PRD v1.1
+AC-09,AC,Cảnh báo ngân sách,Hoãn,,,,PRD v1.1
+AC-10,AC,Xem danh sách + chi tiết khoản chi,MVP (AC-10′; sửa/xóa hoãn),M1-02;M1-03,,IT-TX;IT-AUTHZ;E2E-02,PRD v1.1
+AC-11,AC,Sửa/xóa cập nhật số liệu,Hoãn,,,,PRD v1.1
+AC-12,AC,Thống kê,Hoãn,,,,PRD v1.1
+AC-13,AC,Hũ không tính thu/chi,Hoãn,,,,PRD v1.1
+AC-14,AC,Chặn nạp/rút vượt,Hoãn,,,,PRD v1.1
+AC-15,AC,Chat nhiều draft,Hoãn,,,,PRD v1.1
+AC-16,AC,Chat phân biệt mới/sửa,Hoãn,,,,PRD v1.1
+AC-17,AC,Xác nhận lẻ draft Chat,Hoãn,,,,PRD v1.1
+AC-18,AC,Confirm-all,Hoãn,,,,PRD v1.1
+AC-19,AC,Khôi phục hội thoại,Hoãn,,,,PRD v1.1
+AC-20,AC,Xóa hội thoại,Hoãn,,,,PRD v1.1
+AC-21,AC,Scan đọc món/giá/tổng,MVP,M2-01;M2-02,,IT-SCAN;E2E-09,PRD v1.1
+AC-22,AC,Sửa/thêm/xóa món; đánh dấu thiếu,MVP,M2-03;M2-04,,IT-SCAN;UT-FE-DRAFT;E2E-09,PRD v1.1
+AC-23,AC,Lệch tổng chặn xác nhận nháp,MVP (AC-23′; sửa hóa đơn đã xác nhận hoãn),M2-03;M2-04,,UT-RECON;UT-FE-RECON;IT-SCAN-CONFIRM;E2E-09,PRD v1.1
+AC-24,AC,"Ảnh tạm, được dọn",MVP,M2-02,,IT-PRIV;IT-SCAN-FAIL;IT-SCAN-ABORT;E2E-10,PRD v1.1
+AC-25,AC,Không auto category/thuế,MVP,M2-01;M2-03,,IT-SCAN,PRD v1.1
+AC-26,AC,Xác nhận hóa đơn nguyên tử + CR-02,MVP (AC-26′),M2-03;M2-04,,IT-SCAN-CONFIRM;IT-BAL-GUARD;E2E-09,PRD v1.1
+AC-27,AC,"Mới đăng ký: 0, chưa thiết lập",MVP (CR-02),M1-01,,IT-OPEN-BAL,CR-02
+AC-28,AC,Thiết lập 0 thành công,MVP (CR-02),M1-01,,UT-OPEN-VALUE;IT-OPEN-BAL;E2E-02,CR-02
+AC-29,AC,Thiết lập số dương; không tạo giao dịch,MVP (CR-02),M1-01,,UT-OPEN-VALUE;IT-OPEN-BAL,CR-02
+AC-30,AC,Từ chối âm/thập phân/sai định dạng,MVP (CR-02),M1-01;M1-03,,UT-OPEN-VALUE;IT-OPEN-BAL;E2E-13,CR-02
+AC-31,AC,Sửa trước khoản chi đầu; khóa sau (kể cả AI Scan),MVP (CR-02),M1-01;M2-03,,IT-OPEN-BAL;E2E-09,CR-02
+AC-32,AC,Chưa thiết lập → thông báo OB-6,MVP (CR-02),M1-02;M1-03,,IT-BAL-GUARD;E2E-02,CR-02
+AC-33,AC,Số dư 0 → Số dư không đủ,MVP (CR-02),M1-02;M1-03,,IT-BAL-GUARD;E2E-02,CR-02
+AC-34,AC,Chi = số dư được; vượt bị từ chối,MVP (CR-02),M1-02,,IT-BAL-GUARD;IT-CONC-BAL;UT-BAL;E2E-02,CR-02
+AC-35,AC,AI Scan xác nhận theo CR-02; giữ nháp,MVP (CR-02),M2-03;M2-04,,IT-BAL-GUARD;IT-OPEN-BAL;E2E-09,CR-02
+NFR-SEC,NFR,Bảo mật,MVP,M0-04;M3-01;M3-02,,IT-AUTH;IT-AUTH-REFRESH;IT-AUTHZ;IT-SEC;UT-REDACT,PRD v1.1 §6
+NFR-PERF,NFR,Hiệu năng/độ bền,"MVP thu gọn (timeout AI, loading/error)",M2-01;M0-05,,IT-PROVIDER-MAP;log spike,PRD v1.1 §6
+NFR-INT,NFR,Toàn vẹn dữ liệu,MVP,M0-03;M1-01;M1-02;M2-03,,IT-SCHEMA;UT-MONEY;UT-IDEM;UT-HASH;IT-IDEM;IT-SCAN-IDEM;IT-BAL-GUARD;IT-CONC-BAL;IT-SCAN-CONFIRM,PRD v1.1 §6
+NFR-PRI,NFR,Riêng tư,MVP,M2-02;M2-04,,IT-PRIV;IT-SCAN-FAIL;IT-SCAN-ABORT;UT-REDACT;E2E-10,PRD v1.1 §6
+NFR-USA,NFR,Khả dụng/bảo trì,MVP,M0-04;M1-G;M2-G,,IT-CONTRACT;IT-CONTRACT-MOCK;IT-ENVELOPE;ESLint ranh giới kiến trúc FE,PRD v1.1 §6

@@ -1,0 +1,2 @@
+CREATE DATABASE ase_test;
+CREATE DATABASE ase_shadow;

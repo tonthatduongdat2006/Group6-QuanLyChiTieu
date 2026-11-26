@@ -1,0 +1,61 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # P0-TD-05: CI không bao giờ gọi live AI
+  AI_PROVIDER: fake
+  AI_API_KEY: ''
+  TZ: UTC
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: ase
+          POSTGRES_PASSWORD: ase_ci
+          POSTGRES_DB: ase_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U ase" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql://ase:ase_ci@localhost:5432/ase_test
+      DIRECT_URL: postgresql://ase:ase_ci@localhost:5432/ase_test
+      SHADOW_DATABASE_URL: postgresql://ase:ase_ci@localhost:5432/ase_shadow
+      JWT_ACCESS_SECRET: ci-only-secret-at-least-32-characters-long
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Guard — không có secret/AI key trong repo
+        run: |
+          ! git grep -nE "sk-ant-[A-Za-z0-9_-]{10,}|SUPABASE_SERVICE_ROLE|BEGIN (RSA|EC) PRIVATE KEY" -- . ':!*.md'
+      - name: Contract (45 endpoint — 19 core / 26 deferred, fixtures)
+        run: pnpm contract:check
+      - run: pnpm --filter @ase/contracts gen
+      - run: pnpm --filter @ase/api prisma:generate
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - name: Unit tests
+        run: pnpm test
+      - name: Migrate test DB
+        run: pnpm --filter @ase/api prisma:deploy
+      - name: Create shadow DB
+        run: PGPASSWORD=ase_ci psql -h localhost -U ase -d ase_test -c "CREATE DATABASE ase_shadow"
+      - name: Schema drift (migration SQL == schema.prisma)
+        run: pnpm --filter @ase/api prisma:drift
+      - name: Integration tests (PostgreSQL thật, mạng ra ngoài bị chặn trong code test)
+        run: pnpm test:int

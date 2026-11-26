@@ -1,0 +1,48 @@
+{
+  "name": "chat-revise-pending",
+  "kind": "chat",
+  "description": "Sửa draft đang chờ thay vì tạo mới (AC-16)",
+  "input": {
+    "content": "à phở là 50 nghìn chứ",
+    "today": "2026-11-24",
+    "categories": [
+      "Ăn uống"
+    ],
+    "pending_drafts": [
+      {
+        "ref": "d1",
+        "note": "Ăn phở",
+        "amount": "45000"
+      },
+      {
+        "ref": "d2",
+        "note": "Cà phê",
+        "amount": "30000"
+      }
+    ]
+  },
+  "provider": {
+    "type": "ok",
+    "output": {
+      "intent": "REVISE",
+      "reply": "Đã sửa khoản phở thành 50.000đ.",
+      "transactions": [
+        {
+          "type": "EXPENSE",
+          "amount": "50000",
+          "category_name": "Ăn uống",
+          "transaction_date": "2026-11-24",
+          "note": "Ăn phở",
+          "target_draft_ref": "d1"
+        }
+      ]
+    }
+  },
+  "expect": {
+    "drafts_created": 0,
+    "drafts_updated": [
+      "d1"
+    ],
+    "transactions_created": 0
+  }
+}

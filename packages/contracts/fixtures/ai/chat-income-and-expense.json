@@ -1,0 +1,47 @@
+{
+  "name": "chat-income-and-expense",
+  "kind": "chat",
+  "description": "Thu + chi trong một tin; danh mục lạ → NEEDS_INPUT",
+  "input": {
+    "content": "nhận lương 10 triệu, mua vé xem phim 120k",
+    "today": "2026-11-24",
+    "categories": [
+      "Ăn uống",
+      "Lương"
+    ],
+    "pending_drafts": []
+  },
+  "provider": {
+    "type": "ok",
+    "output": {
+      "intent": "CREATE",
+      "reply": "Mình tạo 2 nháp, khoản xem phim bạn chọn giúp danh mục.",
+      "transactions": [
+        {
+          "type": "INCOME",
+          "amount": "10000000",
+          "category_name": "Lương",
+          "transaction_date": "2026-11-24",
+          "note": "Lương",
+          "target_draft_ref": null
+        },
+        {
+          "type": "EXPENSE",
+          "amount": "120000",
+          "category_name": "Giải trí",
+          "transaction_date": "2026-11-24",
+          "note": "Vé xem phim",
+          "target_draft_ref": null
+        }
+      ]
+    }
+  },
+  "expect": {
+    "drafts": 2,
+    "statuses": [
+      "READY",
+      "NEEDS_INPUT"
+    ],
+    "transactions_created": 0
+  }
+}

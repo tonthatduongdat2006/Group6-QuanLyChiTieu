@@ -1,0 +1,21 @@
+{
+  "name": "chat-invalid-json",
+  "kind": "chat",
+  "description": "Model trả text không phải JSON → AI_PROVIDER_ERROR",
+  "input": {
+    "content": "ăn trưa 35k",
+    "today": "2026-11-24",
+    "categories": [
+      "Ăn uống"
+    ],
+    "pending_drafts": []
+  },
+  "provider": {
+    "type": "raw",
+    "text": "Chắc chắn rồi! Đây là giao dịch: ăn trưa 35k"
+  },
+  "expect": {
+    "error": "AI_PROVIDER_ERROR",
+    "transactions_created": 0
+  }
+}

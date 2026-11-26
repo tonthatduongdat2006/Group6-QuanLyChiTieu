@@ -1,0 +1,329 @@
+// P1-BE-01 — Schema theo ERD v1.1 (14 bảng) + delta D-12a (transactions.deleted_at).
+// Ràng buộc Prisma không biểu diễn được (CHECK) nằm ở SQL thô trong migration baseline.
+// Quy ước: model PascalCase ↔ bảng snake_case; field camelCase ↔ cột snake_case.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum TransactionType {
+  INCOME
+  EXPENSE
+}
+
+enum TransactionSource {
+  MANUAL
+  AI_CHAT
+  AI_SCAN
+}
+
+enum JarTransactionType {
+  DEPOSIT
+  WITHDRAW
+}
+
+enum DraftStatus {
+  NEEDS_INPUT
+  READY
+  CONFIRMED
+  CANCELLED
+  EXPIRED
+}
+
+enum MessageRole {
+  USER
+  ASSISTANT
+}
+
+enum BatchSourceType {
+  AI_CHAT
+  AI_SCAN
+}
+
+// 3.1
+model User {
+  id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  fullName            String    @map("full_name") @db.VarChar(120)
+  email               String    @unique @db.VarChar(254) // luôn lưu dạng đã chuẩn hóa (trim + lowercase)
+  passwordHash        String    @map("password_hash") @db.VarChar(255)
+  phone               String?   @db.VarChar(20)
+  termsAcceptedAt     DateTime  @map("terms_accepted_at") @db.Timestamptz(6)
+  // CR-02 (D-27): số dư ban đầu do người dùng xác nhận (≥ 0, CHECK trong migration). NULL set_at = chưa thiết lập.
+  openingBalance      BigInt    @default(0) @map("opening_balance")
+  openingBalanceSetAt DateTime? @map("opening_balance_set_at") @db.Timestamptz(6)
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  sessions        AuthSession[]
+  categories      Category[]
+  transactions    Transaction[]
+  budgets         Budget[]
+  savingJars      SavingJar[]
+  jarTransactions JarTransaction[]
+  conversations   AiConversation[]
+  draftBatches    AiDraftBatch[]
+  drafts          AiDraft[]
+
+  @@map("users")
+}
+
+// 3.2
+model AuthSession {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId           String    @map("user_id") @db.Uuid
+  refreshTokenHash String    @unique @map("refresh_token_hash") @db.Char(64)
+  expiresAt        DateTime  @map("expires_at") @db.Timestamptz(6)
+  revokedAt        DateTime? @map("revoked_at") @db.Timestamptz(6)
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("auth_sessions")
+}
+
+// 3.3
+model Category {
+  id             String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId         String          @map("user_id") @db.Uuid
+  name           String          @db.VarChar(50)
+  nameNormalized String          @map("name_normalized") @db.VarChar(50)
+  type           TransactionType
+  isDefault      Boolean         @map("is_default")
+  createdAt      DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user                 User          @relation(fields: [userId], references: [id])
+  transactions         Transaction[] @relation("TransactionCategoryOwner")
+  transactionsTypeLink Transaction[] @relation("TransactionCategoryType")
+  budgets              Budget[]
+  drafts               AiDraft[]
+
+  @@unique([userId, type, nameNormalized])
+  @@unique([userId, id]) // đích FK composite chủ sở hữu
+  @@unique([id, type]) // đích FK composite khớp loại
+  @@map("categories")
+}
+
+// 3.4 (+ D-12a deleted_at)
+model Transaction {
+  id                     String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId                 String            @map("user_id") @db.Uuid
+  categoryId             String            @map("category_id") @db.Uuid
+  type                   TransactionType
+  amount                 BigInt
+  transactionDate        DateTime          @map("transaction_date") @db.Date
+  note                   String?
+  source                 TransactionSource
+  idempotencyKey         String?           @map("idempotency_key") @db.VarChar(200)
+  idempotencyRequestHash String?           @map("idempotency_request_hash") @db.Char(64)
+  deletedAt              DateTime?         @map("deleted_at") @db.Timestamptz(6)
+  createdAt              DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt              DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user           User            @relation(fields: [userId], references: [id])
+  category       Category        @relation("TransactionCategoryOwner", fields: [userId, categoryId], references: [userId, id])
+  categoryTyped  Category        @relation("TransactionCategoryType", fields: [categoryId, type], references: [id, type])
+  receiptDetails ReceiptDetails?
+  draft          AiDraft?
+
+  @@unique([userId, idempotencyKey])
+  @@index([userId, transactionDate])
+  @@index([userId, categoryId, transactionDate])
+  @@map("transactions")
+}
+
+// 3.5
+model Budget {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  categoryId  String   @map("category_id") @db.Uuid
+  monthStart  DateTime @map("month_start") @db.Date
+  limitAmount BigInt   @map("limit_amount")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user     User     @relation(fields: [userId], references: [id])
+  category Category @relation(fields: [userId, categoryId], references: [userId, id])
+
+  @@unique([userId, categoryId, monthStart])
+  @@index([userId, monthStart])
+  @@map("budgets")
+}
+
+// 3.6
+model SavingJar {
+  id                   String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId               String   @map("user_id") @db.Uuid
+  name                 String   @db.VarChar(100)
+  targetAmount         BigInt   @map("target_amount")
+  createIdempotencyKey String?  @map("create_idempotency_key") @db.VarChar(200)
+  createRequestHash    String?  @map("create_request_hash") @db.Char(64)
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user         User             @relation(fields: [userId], references: [id])
+  transactions JarTransaction[]
+
+  @@unique([userId, createIdempotencyKey])
+  @@unique([userId, id])
+  @@map("saving_jars")
+}
+
+// 3.7
+model JarTransaction {
+  id                     String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId                 String             @map("user_id") @db.Uuid
+  jarId                  String             @map("jar_id") @db.Uuid
+  type                   JarTransactionType
+  amount                 BigInt
+  transactionDate        DateTime           @default(now()) @map("transaction_date") @db.Timestamptz(6)
+  note                   String?
+  idempotencyKey         String?            @map("idempotency_key") @db.VarChar(200)
+  idempotencyRequestHash String?            @map("idempotency_request_hash") @db.Char(64)
+
+  user User      @relation(fields: [userId], references: [id])
+  jar  SavingJar @relation(fields: [userId, jarId], references: [userId, id])
+
+  @@unique([userId, idempotencyKey])
+  @@index([jarId, transactionDate])
+  @@map("jar_transactions")
+}
+
+// 3.8
+model AiConversation {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  title     String?   @db.VarChar(200)
+  isSaved   Boolean   @default(false) @map("is_saved")
+  savedAt   DateTime? @map("saved_at") @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user     User           @relation(fields: [userId], references: [id])
+  messages AiMessage[]
+  batches  AiDraftBatch[]
+
+  @@map("ai_conversations")
+}
+
+// 3.9
+model AiMessage {
+  id                     String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  conversationId         String      @map("conversation_id") @db.Uuid
+  role                   MessageRole
+  content                String
+  idempotencyKey         String?     @map("idempotency_key") @db.VarChar(200)
+  idempotencyRequestHash String?     @map("idempotency_request_hash") @db.Char(64)
+  createdAt              DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  conversation AiConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  batches      AiDraftBatch[]
+
+  @@unique([conversationId, idempotencyKey])
+  @@index([conversationId, createdAt])
+  @@map("ai_messages")
+}
+
+// 3.10
+model AiDraftBatch {
+  id                       String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId                   String          @map("user_id") @db.Uuid
+  conversationId           String?         @map("conversation_id") @db.Uuid
+  sourceMessageId          String?         @map("source_message_id") @db.Uuid
+  sourceType               BatchSourceType @map("source_type")
+  idempotencyKey           String?         @map("idempotency_key") @db.VarChar(200)
+  idempotencyRequestHash   String?         @map("idempotency_request_hash") @db.Char(64)
+  confirmAllIdempotencyKey String?         @map("confirm_all_idempotency_key") @db.VarChar(200)
+  confirmAllRequestHash    String?         @map("confirm_all_request_hash") @db.Char(64)
+  createdAt                DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user          User            @relation(fields: [userId], references: [id])
+  // FK đơn (cột nullable): quyền sở hữu hội thoại được kiểm ở service trong cùng DB tx (ERD §3: "equivalent transactional backend checks")
+  conversation  AiConversation? @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sourceMessage AiMessage?      @relation(fields: [sourceMessageId], references: [id], onDelete: SetNull)
+  drafts        AiDraft[]
+
+  @@unique([userId, sourceType, idempotencyKey])
+  @@unique([userId, confirmAllIdempotencyKey])
+  @@unique([userId, id])
+  @@map("ai_draft_batches")
+}
+
+// 3.11
+model AiDraft {
+  id                    String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId                String           @map("user_id") @db.Uuid
+  batchId               String           @map("batch_id") @db.Uuid
+  transactionType       TransactionType? @map("transaction_type")
+  amount                BigInt?
+  categoryId            String?          @map("category_id") @db.Uuid
+  transactionDate       DateTime?        @map("transaction_date") @db.Date
+  note                  String?
+  merchantName          String?          @map("merchant_name") @db.VarChar(200)
+  status                DraftStatus
+  validationErrors      Json?            @map("validation_errors")
+  transactionId         String?          @unique @map("transaction_id") @db.Uuid
+  confirmIdempotencyKey String?          @map("confirm_idempotency_key") @db.VarChar(200)
+  confirmRequestHash    String?          @map("confirm_request_hash") @db.Char(64)
+  expiresAt             DateTime?        @map("expires_at") @db.Timestamptz(6)
+  createdAt             DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user        User          @relation(fields: [userId], references: [id])
+  batch       AiDraftBatch  @relation(fields: [userId, batchId], references: [userId, id], onDelete: Cascade)
+  // FK đơn (cột nullable): category của đúng user được kiểm ở service mỗi lần sửa/xác nhận draft
+  category    Category?     @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  transaction Transaction?  @relation(fields: [transactionId], references: [id], onDelete: SetNull)
+  items       AiDraftItem[]
+
+  @@unique([userId, confirmIdempotencyKey])
+  @@index([batchId, status])
+  @@map("ai_drafts")
+}
+
+// 3.12
+model AiDraftItem {
+  id        String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  draftId   String  @map("draft_id") @db.Uuid
+  itemName  String? @map("item_name") @db.VarChar(200)
+  amount    BigInt?
+  sortOrder Int     @map("sort_order")
+
+  draft AiDraft @relation(fields: [draftId], references: [id], onDelete: Cascade)
+
+  @@index([draftId, sortOrder])
+  @@map("ai_draft_items")
+}
+
+// 3.13 — D-12b: không cascade khi transaction bị (soft) xóa
+model ReceiptDetails {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  transactionId String   @unique @map("transaction_id") @db.Uuid
+  merchantName  String?  @map("merchant_name") @db.VarChar(200)
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  transaction Transaction   @relation(fields: [transactionId], references: [id], onDelete: Restrict)
+  items       ReceiptItem[]
+
+  @@map("receipt_details")
+}
+
+// 3.14
+model ReceiptItem {
+  id              String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  receiptDetailId String @map("receipt_detail_id") @db.Uuid
+  itemName        String @map("item_name") @db.VarChar(200)
+  amount          BigInt
+  sortOrder       Int    @map("sort_order")
+
+  receiptDetails ReceiptDetails @relation(fields: [receiptDetailId], references: [id], onDelete: Cascade)
+
+  @@index([receiptDetailId, sortOrder])
+  @@map("receipt_items")
+}

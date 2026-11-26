@@ -1,0 +1,14 @@
+{
+  "name": "receipt-timeout",
+  "kind": "receipt",
+  "description": "Vision timeout → AI_PROVIDER_ERROR, không batch/draft, buffer bị hủy",
+  "input": {
+    "image": "generated:receipt-readable"
+  },
+  "provider": {
+    "type": "timeout"
+  },
+  "expect": {
+    "error": "AI_PROVIDER_ERROR"
+  }
+}

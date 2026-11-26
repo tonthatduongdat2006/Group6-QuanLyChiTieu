@@ -1,0 +1,13 @@
+node_modules/
+dist/
+coverage/
+.env
+.env.*
+!.env.example
+.expo/
+ios/
+android/
+*.log
+apps/api/src/generated/
+packages/contracts/src/generated/
+.vercel

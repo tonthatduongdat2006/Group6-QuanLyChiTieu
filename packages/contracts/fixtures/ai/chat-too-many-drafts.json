@@ -1,0 +1,122 @@
+{
+  "name": "chat-too-many-drafts",
+  "kind": "chat",
+  "description": "Model trả > AI_MAX_DRAFTS_PER_MESSAGE (10) → cắt/không nhận (D-17)",
+  "input": {
+    "content": "liệt kê 12 khoản",
+    "today": "2026-11-24",
+    "categories": [
+      "Ăn uống"
+    ],
+    "pending_drafts": []
+  },
+  "provider": {
+    "type": "ok",
+    "output": {
+      "intent": "CREATE",
+      "reply": "12 khoản",
+      "transactions": [
+        {
+          "type": "EXPENSE",
+          "amount": "1000",
+          "category_name": "Ăn uống",
+          "transaction_date": "2026-11-24",
+          "note": "Món 1",
+          "target_draft_ref": null
+        },
+        {
+          "type": "EXPENSE",
+          "amount": "2000",
+          "category_name": "Ăn uống",
+          "transaction_date": "2026-11-24",
+          "note": "Món 2",
+          "target_draft_ref": null
+        },
+        {
+          "type": "EXPENSE",
+          "amount": "3000",
+          "category_name": "Ăn uống",
+          "transaction_date": "2026-11-24",
+          "note": "Món 3",
+          "target_draft_ref": null
+        },
+        {
+          "type": "EXPENSE",
+          "amount": "4000",
+          "category_name": "Ăn uống",
+          "transaction_date": "2026-11-24",
+          "note": "Món 4",
+          "target_draft_ref": null
+        },
+        {
+          "type": "EXPENSE",
+          "amount": "5000",
+          "category_name": "Ăn uống",
+          "transaction_date": "2026-11-24",
+          "note": "Món 5",
+          "target_draft_ref": null
+        },
+        {
+          "type": "EXPENSE",
+          "amount": "6000",
+          "category_name": "Ăn uống",
+          "transaction_date": "2026-11-24",
+          "note": "Món 6",
+          "target_draft_ref": null
+        },
+        {
+          "type": "EXPENSE",
+          "amount": "7000",
+          "category_name": "Ăn uống",
+          "transaction_date": "2026-11-24",
+          "note": "Món 7",
+          "target_draft_ref": null
+        },
+        {
+          "type": "EXPENSE",
+          "amount": "8000",
+          "category_name": "Ăn uống",
+          "transaction_date": "2026-11-24",
+          "note": "Món 8",
+          "target_draft_ref": null
+        },
+        {
+          "type": "EXPENSE",
+          "amount": "9000",
+          "category_name": "Ăn uống",
+          "transaction_date": "2026-11-24",
+          "note": "Món 9",
+          "target_draft_ref": null
+        },
+        {
+          "type": "EXPENSE",
+          "amount": "10000",
+          "category_name": "Ăn uống",
+          "transaction_date": "2026-11-24",
+          "note": "Món 10",
+          "target_draft_ref": null
+        },
+        {
+          "type": "EXPENSE",
+          "amount": "11000",
+          "category_name": "Ăn uống",
+          "transaction_date": "2026-11-24",
+          "note": "Món 11",
+          "target_draft_ref": null
+        },
+        {
+          "type": "EXPENSE",
+          "amount": "12000",
+          "category_name": "Ăn uống",
+          "transaction_date": "2026-11-24",
+          "note": "Món 12",
+          "target_draft_ref": null
+        }
+      ]
+    }
+  },
+  "expect": {
+    "error": "VALIDATION_ERROR",
+    "transactions_created": 0
+  }
+}

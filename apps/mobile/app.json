@@ -1,0 +1,15 @@
+{
+  "expo": {
+    "name": "AI Smart Expense",
+    "slug": "ai-smart-expense",
+    "scheme": "aismartexpense",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": { "bundleIdentifier": "vn.edu.aismartexpense", "supportsTablet": false },
+    "android": { "package": "vn.edu.aismartexpense" },
+    "plugins": ["expo-router", "expo-secure-store"],
+    "experiments": { "typedRoutes": true }
+  }
+}

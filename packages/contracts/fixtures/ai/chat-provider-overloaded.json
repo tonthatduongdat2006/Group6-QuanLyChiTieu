@@ -1,0 +1,21 @@
+{
+  "name": "chat-provider-overloaded",
+  "kind": "chat",
+  "description": "Provider 429/529 → RATE_LIMITED",
+  "input": {
+    "content": "đổ xăng 80k",
+    "today": "2026-11-24",
+    "categories": [
+      "Di chuyển"
+    ],
+    "pending_drafts": []
+  },
+  "provider": {
+    "type": "error",
+    "status": 429
+  },
+  "expect": {
+    "error": "RATE_LIMITED",
+    "transactions_created": 0
+  }
+}

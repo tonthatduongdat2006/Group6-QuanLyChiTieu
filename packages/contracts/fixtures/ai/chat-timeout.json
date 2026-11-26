@@ -1,0 +1,20 @@
+{
+  "name": "chat-timeout",
+  "kind": "chat",
+  "description": "Provider timeout → AI_PROVIDER_ERROR, không ghi gì",
+  "input": {
+    "content": "đổ xăng 80k",
+    "today": "2026-11-24",
+    "categories": [
+      "Di chuyển"
+    ],
+    "pending_drafts": []
+  },
+  "provider": {
+    "type": "timeout"
+  },
+  "expect": {
+    "error": "AI_PROVIDER_ERROR",
+    "transactions_created": 0
+  }
+}
